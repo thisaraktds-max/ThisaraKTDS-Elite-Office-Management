@@ -1,0 +1,6 @@
+{
+  "name": "Elite International School - Office & Admissions Management",
+  "description": "Comprehensive school office, admissions pipeline, fees, income, cash flow, and bursary management system for Elite International School.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
