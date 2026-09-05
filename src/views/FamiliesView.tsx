@@ -15,7 +15,10 @@ import {
   ChevronRight,
   User,
   GraduationCap,
+  Pencil,
+  Trash2,
 } from 'lucide-react';
+import { ConfirmDialogModal } from '../components/modals/ConfirmDialogModal';
 
 export const FamiliesView: React.FC<{ onOpenDossier: (id: string) => void }> = ({ onOpenDossier }) => {
   const { getHeaders } = useStaff();
@@ -24,6 +27,10 @@ export const FamiliesView: React.FC<{ onOpenDossier: (id: string) => void }> = (
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingFamily, setEditingFamily] = useState<Family | null>(null);
+  const [isSavingFamily, setIsSavingFamily] = useState(false);
+  const [familyToDelete, setFamilyToDelete] = useState<Family | null>(null);
+  const [isDeletingFamily, setIsDeletingFamily] = useState(false);
 
   const [form, setForm] = useState({
     household_name: '',
@@ -56,37 +63,94 @@ export const FamiliesView: React.FC<{ onOpenDossier: (id: string) => void }> = (
     fetchFamilies();
   }, []);
 
-  const handleCreateFamily = async (e: React.FormEvent) => {
+  const handleOpenAddFamily = () => {
+    setEditingFamily(null);
+    setForm({
+      household_name: '',
+      primary_guardian_name: '',
+      primary_phone: '',
+      primary_email: '',
+      secondary_guardian_name: '',
+      secondary_phone: '',
+      secondary_email: '',
+      address: '',
+      notes: '',
+    });
+    setShowAddModal(true);
+  };
+
+  const handleOpenEditFamily = (fam: Family) => {
+    setEditingFamily(fam);
+    setForm({
+      household_name: fam.household_name || '',
+      primary_guardian_name: fam.primary_guardian_name || '',
+      primary_phone: fam.primary_phone || '',
+      primary_email: fam.primary_email || '',
+      secondary_guardian_name: fam.secondary_guardian_name || '',
+      secondary_phone: fam.secondary_phone || '',
+      secondary_email: fam.secondary_email || '',
+      address: fam.address || '',
+      notes: fam.notes || '',
+    });
+    setShowAddModal(true);
+  };
+
+  const handleSaveFamily = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!form.household_name || !form.primary_guardian_name || !form.primary_phone) {
       showToast('Please fill all required household details', 'error');
       return;
     }
+    setIsSavingFamily(true);
     try {
-      const res = await fetch('/api/families', {
-        method: 'POST',
+      const url = editingFamily ? `/api/families/${editingFamily.id}` : '/api/families';
+      const method = editingFamily ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
         headers: getHeaders(),
         body: JSON.stringify(form),
       });
       const data = await res.json();
       if (res.ok) {
-        showToast(`Created household account ${form.household_name} (${data.family_code})`, 'success');
+        showToast(
+          editingFamily
+            ? `Updated household record for ${form.household_name}`
+            : `Created household account ${form.household_name} (${data.family_code})`,
+          'success'
+        );
         setShowAddModal(false);
-        setForm({
-          household_name: '',
-          primary_guardian_name: '',
-          primary_phone: '',
-          primary_email: '',
-          secondary_guardian_name: '',
-          secondary_phone: '',
-          secondary_email: '',
-          address: '',
-          notes: '',
-        });
+        setEditingFamily(null);
         fetchFamilies();
+      } else {
+        showToast(data.error || 'Failed to save family household', 'error');
       }
     } catch (err) {
-      showToast('Failed to create family', 'error');
+      showToast('Failed to save family household', 'error');
+    } finally {
+      setIsSavingFamily(false);
+    }
+  };
+
+  const handleConfirmDeleteFamily = async () => {
+    if (!familyToDelete) return;
+    setIsDeletingFamily(true);
+    try {
+      const res = await fetch(`/api/families/${familyToDelete.id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        showToast(`Household "${familyToDelete.household_name}" deleted successfully`, 'success');
+        setFamilyToDelete(null);
+        fetchFamilies();
+      } else {
+        showToast(data.error || 'Failed to delete household', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to delete household', 'error');
+    } finally {
+      setIsDeletingFamily(false);
     }
   };
 
@@ -123,7 +187,7 @@ export const FamiliesView: React.FC<{ onOpenDossier: (id: string) => void }> = (
           </div>
 
           <button
-            onClick={() => setShowAddModal(true)}
+            onClick={handleOpenAddFamily}
             className="btn btn-primary text-xs flex items-center gap-1.5"
           >
             <Plus className="w-3.5 h-3.5" />
@@ -145,8 +209,24 @@ export const FamiliesView: React.FC<{ onOpenDossier: (id: string) => void }> = (
                     <h4 className="font-bold text-base text-foreground font-serif">{fam.household_name}</h4>
                     <div className="mono text-xs text-primary font-semibold">{fam.family_code}</div>
                   </div>
-                  <div className="w-9 h-9 rounded-xl bg-accent/15 text-accent-foreground flex items-center justify-center font-bold text-xs">
-                    <Users className="w-4 h-4 text-accent" />
+                  <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => handleOpenEditFamily(fam)}
+                      className="btn btn-ghost !h-7 !w-7 !p-0 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted inline-flex items-center justify-center"
+                      title="Edit Household Details"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setFamilyToDelete(fam)}
+                      className="btn btn-ghost !h-7 !w-7 !p-0 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 inline-flex items-center justify-center"
+                      title="Delete Household"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                    <div className="w-8 h-8 rounded-xl bg-accent/15 text-accent-foreground flex items-center justify-center font-bold text-xs ml-1">
+                      <Users className="w-4 h-4 text-accent" />
+                    </div>
                   </div>
                 </div>
 
@@ -211,21 +291,29 @@ export const FamiliesView: React.FC<{ onOpenDossier: (id: string) => void }> = (
                 title="No Households Found"
                 description="No family households match your search query."
                 actionLabel="Create Household"
-                onAction={() => setShowAddModal(true)}
+                onAction={handleOpenAddFamily}
               />
             </div>
           )}
         </div>
       )}
 
-      {/* Add Household Modal */}
+      {/* Add / Edit Household Modal */}
       {showAddModal && (
-        <div className="modal-backdrop" onClick={() => setShowAddModal(false)}>
+        <div
+          className="modal-backdrop"
+          onClick={() => {
+            setShowAddModal(false);
+            setEditingFamily(null);
+          }}
+        >
           <div className="modal !max-w-lg" onClick={e => e.stopPropagation()}>
             <div className="eyebrow">Household Management</div>
-            <h3 className="text-lg font-serif font-bold text-foreground mb-4">Create Family Household Record</h3>
+            <h3 className="text-lg font-serif font-bold text-foreground mb-4">
+              {editingFamily ? `Edit Household: ${editingFamily.household_name}` : 'Create Family Household Record'}
+            </h3>
 
-            <form onSubmit={handleCreateFamily} className="space-y-3">
+            <form onSubmit={handleSaveFamily} className="space-y-3">
               <div>
                 <label className="block text-xs font-semibold mb-1">Household Title / Family Name *</label>
                 <input
@@ -308,13 +396,54 @@ export const FamiliesView: React.FC<{ onOpenDossier: (id: string) => void }> = (
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowAddModal(false)} className="btn btn-ghost text-xs">Cancel</button>
-                <button type="submit" className="btn btn-primary text-xs">Create Household</button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowAddModal(false);
+                    setEditingFamily(null);
+                  }}
+                  className="btn btn-ghost text-xs"
+                  disabled={isSavingFamily}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary text-xs"
+                  disabled={isSavingFamily}
+                >
+                  {isSavingFamily ? 'Saving...' : editingFamily ? 'Save Changes' : 'Create Household'}
+                </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {/* Delete Household Confirmation Modal */}
+      <ConfirmDialogModal
+        isOpen={!!familyToDelete}
+        onClose={() => setFamilyToDelete(null)}
+        onConfirm={handleConfirmDeleteFamily}
+        title="Delete Family Household"
+        message={`Are you sure you want to permanently delete household "${familyToDelete?.household_name}" (${familyToDelete?.family_code})?`}
+        confirmText="Delete Household"
+        variant="danger"
+        isConfirming={isDeletingFamily}
+        warningDetails={
+          familyToDelete?.students && familyToDelete.students.length > 0
+            ? [
+                `⚠️ This household currently has ${familyToDelete.students.length} linked active student(s): ${familyToDelete.students.map(s => `${s.first_name} ${s.last_name}`).join(', ')}.`,
+                'The system requires active students to be unlinked or reassigned before this household can be removed.',
+                'If attempted with active students linked, the server will reject the deletion.',
+              ]
+            : [
+                'This household currently has no linked active students.',
+                'The household profile and guardian contact details will be permanently removed.',
+                'This action is logged in the administrative staff audit trail.',
+              ]
+        }
+      />
     </div>
   );
 };

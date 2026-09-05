@@ -203,10 +203,89 @@ tbody tr:hover { background:hsl(var(--muted) / .48); transform: translateY(-0.5p
 
 @keyframes rise { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } } @keyframes fade { from { opacity:0; } to { opacity:1; } } @keyframes shimmer { to { background-position:-200% 0; } }
 @media print {
-  body * { visibility: hidden; }
-  .receipt-print, .receipt-print * { visibility: visible; }
-  .receipt-print { position: absolute; left: 0; top: 0; width: 100%; border: 0; }
-  .receipt-print-thermal, .receipt-print-thermal * { visibility: visible; }
+  /* Reset page for clean black-on-white output */
+  html, body {
+    background: #ffffff !important;
+    color: #000000 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  /* Hide non-printable app elements */
+  .sidebar, .topbar, nav, button, .receipt-actions, .no-print, [role="tooltip"], .toast-container {
+    display: none !important;
+  }
+  
+  /* Unset modal overlay constraints so the print document flows naturally across pages */
+  .modal-backdrop {
+    position: static !important;
+    inset: auto !important;
+    z-index: auto !important;
+    background: transparent !important;
+    backdrop-filter: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    display: block !important;
+    width: 100% !important;
+    height: auto !important;
+  }
+  
+  .modal {
+    position: static !important;
+    max-width: 100% !important;
+    width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+  }
+
+  .hidden, [style*="display: none"] {
+    display: none !important;
+  }
+
+  body * {
+    visibility: hidden;
+  }
+
+  .receipt-print,
+  .receipt-print *,
+  .receipt-print-screen,
+  .receipt-print-screen *,
+  .receipt-print-thermal,
+  .receipt-print-thermal * {
+    visibility: visible;
+  }
+
+  .receipt-print {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    max-width: 210mm;
+    margin: 0 auto;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+    padding: 8mm !important;
+  }
+
+  .receipt-print-screen {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    border: 0 !important;
+    box-shadow: none !important;
+    background: #ffffff !important;
+    color: #000000 !important;
+  }
+
   .receipt-print-thermal {
     position: absolute;
     left: 0;
@@ -214,10 +293,12 @@ tbody tr:hover { background:hsl(var(--muted) / .48); transform: translateY(-0.5p
     width: 72mm;
     padding: 2mm;
     font-size: 10px;
-    color: #000;
-    background: #fff;
+    font-family: monospace;
+    color: #000000 !important;
+    background: #ffffff !important;
+    border: 0 !important;
+    box-shadow: none !important;
   }
-  .receipt-actions { display: none !important; }
 }
 @media (max-width: 1024px) { .sidebar { width:228px; } }
 @media (max-width: 900px) { .sidebar { width:210px; } .topbar,.page { padding-left:20px; padding-right:20px; } }

@@ -31,7 +31,9 @@ import {
   Sparkles,
   History,
   Shield,
+  Printer,
 } from 'lucide-react';
+import { ConfirmDialogModal } from '../components/modals/ConfirmDialogModal';
 
 interface ApplicantDossierViewProps {
   applicantId: string;
@@ -41,6 +43,7 @@ interface ApplicantDossierViewProps {
   onOpenCommunications: (recipient: any) => void;
   onOpenRecordIncome: (applicantId: string, prefilledAmount?: number) => void;
   onNavigateToStudent: (id: string) => void;
+  onOpenReceiptModal?: (receiptId: string) => void;
 }
 
 const ALL_STATUSES: { value: AdmissionStatus; label: string }[] = [
@@ -61,6 +64,7 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
   onOpenCommunications,
   onOpenRecordIncome,
   onNavigateToStudent,
+  onOpenReceiptModal,
 }) => {
   const { getHeaders } = useStaff();
   const { showToast } = useNotification();
@@ -89,6 +93,8 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
 
   // Scholarship form
   const [showAddScholarship, setShowAddScholarship] = useState(false);
+  const [scholarshipToDelete, setScholarshipToDelete] = useState<any | null>(null);
+  const [isDeletingScholarship, setIsDeletingScholarship] = useState(false);
   const [schForm, setSchForm] = useState({
     title: 'Sibling Fee Concession',
     discount_type: 'percentage',
@@ -402,6 +408,30 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
       }
     } catch (err) {
       showToast('Failed to apply scholarship', 'error');
+    }
+  };
+
+  // Remove Scholarship
+  const handleConfirmDeleteScholarship = async () => {
+    if (!scholarshipToDelete) return;
+    setIsDeletingScholarship(true);
+    try {
+      const res = await fetch(`/api/applicants/${app.id}/scholarships/${scholarshipToDelete.id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      if (res.ok) {
+        showToast(`Removed fee concession: ${scholarshipToDelete.title}`, 'success');
+        setScholarshipToDelete(null);
+        fetchDossier();
+      } else {
+        const data = await res.json();
+        showToast(data.error || 'Failed to remove fee concession', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to remove fee concession', 'error');
+    } finally {
+      setIsDeletingScholarship(false);
     }
   };
 
@@ -1364,6 +1394,71 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
             </form>
           )}
 
+          {/* Applied Scholarships & Fee Concessions Table */}
+          <div className="panel p-5">
+            <div className="flex flex-wrap items-center justify-between gap-2 mb-3">
+              <div>
+                <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Fee Abatements & Concessions</div>
+                <h4 className="text-sm font-bold text-foreground">Applied Scholarships & Institutional Discounts</h4>
+              </div>
+              <span className="badge badge-soft text-[10px] font-mono">
+                Total Abatements: -LKR {Number(financials.discountTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="table-clean w-full">
+                <thead>
+                  <tr>
+                    <th>Concession Title</th>
+                    <th>Type</th>
+                    <th>Discount Rate / Value</th>
+                    <th>Justification / Reason</th>
+                    <th>Approved By</th>
+                    <th className="text-right w-24">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {financials.scholarships?.map((sch: any) => (
+                    <tr key={sch.id}>
+                      <td className="font-semibold text-xs text-foreground">{sch.title}</td>
+                      <td className="text-xs">
+                        <span className={`badge ${sch.discount_type === 'percentage' ? 'badge-primary' : 'badge-soft'} !text-[10px]`}>
+                          {sch.discount_type === 'percentage' ? 'Percentage %' : 'Fixed Amount'}
+                        </span>
+                      </td>
+                      <td className="mono font-bold text-xs text-primary">
+                        {sch.discount_type === 'percentage'
+                          ? `${sch.value}% off tuition`
+                          : `LKR ${Number(sch.value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+                      </td>
+                      <td className="text-xs text-muted-foreground max-w-xs truncate">{sch.justification || 'Standard discount'}</td>
+                      <td className="text-xs text-muted-foreground">{sch.approved_by || 'Admissions / Bursar'}</td>
+                      <td className="text-right">
+                        <button
+                          type="button"
+                          onClick={() => setScholarshipToDelete(sch)}
+                          className="btn btn-ghost !h-7 !px-2 text-xs inline-flex items-center justify-center gap-1 text-destructive hover:bg-destructive/10 rounded-md leading-none"
+                          title="Remove Scholarship / Concession"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span className="hidden sm:inline">Remove</span>
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {(!financials.scholarships || financials.scholarships.length === 0) && (
+                    <tr>
+                      <td colSpan={6} className="py-6 text-center text-xs text-muted-foreground">
+                        No scholarships or fee concessions applied to this student account.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
           {/* Itemized Payments History */}
           <div className="panel p-5">
             <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Credited Payment Receipts</div>
@@ -1376,6 +1471,7 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
                   <th>Payer</th>
                   <th>Received By</th>
                   <th className="text-right">Amount</th>
+                  <th className="text-right">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -1389,11 +1485,24 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
                     <td className="text-right font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
                       +LKR {Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
+                    <td className="text-right whitespace-nowrap">
+                      {onOpenReceiptModal && (
+                        <button
+                          type="button"
+                          onClick={() => onOpenReceiptModal(p.id)}
+                          className="btn btn-soft !py-1 !px-2.5 text-[11px] inline-flex items-center gap-1.5 font-medium rounded-lg hover:text-primary transition-colors cursor-pointer"
+                          title={`View or Print Receipt ${p.receipt_no}`}
+                        >
+                          <Printer className="w-3 h-3 text-muted-foreground" />
+                          <span>Receipt</span>
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 ))}
                 {(!financials.payments || financials.payments.length === 0) && (
                   <tr>
-                    <td colSpan={6} className="py-6 text-center text-xs text-muted-foreground">
+                    <td colSpan={7} className="py-6 text-center text-xs text-muted-foreground">
                       No payments credited for this student yet.
                     </td>
                   </tr>
@@ -1775,6 +1884,24 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Delete Scholarship / Concession Confirmation Modal */}
+      <ConfirmDialogModal
+        isOpen={!!scholarshipToDelete}
+        onClose={() => setScholarshipToDelete(null)}
+        onConfirm={handleConfirmDeleteScholarship}
+        title="Remove Fee Concession / Scholarship"
+        message={`Are you sure you want to remove the "${scholarshipToDelete?.title}" concession from ${app.first_name} ${app.last_name}'s account?`}
+        confirmText="Remove Concession"
+        variant="danger"
+        isConfirming={isDeletingScholarship}
+        warningDetails={[
+          `Discount Value: ${scholarshipToDelete?.discount_type === 'percentage' ? `${scholarshipToDelete?.value}% off standard tuition` : `LKR ${Number(scholarshipToDelete?.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} fixed`}`,
+          'Removing this concession will immediately increase the net tuition expected and student outstanding balance due.',
+          'Any active installment plans will need to be re-evaluated to adjust for the revised net tuition.',
+          'This removal will be recorded permanently in the staff audit trail.',
+        ]}
+      />
     </div>
   );
 };

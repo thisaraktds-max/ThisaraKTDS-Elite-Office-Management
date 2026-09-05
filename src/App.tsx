@@ -227,6 +227,7 @@ const AppContent: React.FC = () => {
                 onOpenCommunications={handleOpenCommunications}
                 onOpenRecordIncome={(appId, amount) => handleOpenRecordIncomeWithPrefill(appId, amount)}
                 onNavigateToStudent={handleOpenDossier}
+                onOpenReceiptModal={handleOpenReceipt}
               />
             ) : (
               <div className="panel p-12 text-center space-y-3">

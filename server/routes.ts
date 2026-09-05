@@ -1483,11 +1483,13 @@ apiRouter.post('/applicants/:id/scholarships', async (req, res) => {
 apiRouter.delete('/applicants/:id/scholarships/:schId', async (req, res) => {
   try {
     const db = await getDb();
-    const { schId } = req.params;
+    const { id, schId } = req.params;
     const loggedInStaff = req.headers['x-staff-name'] as string || 'Bursar';
+    const existing = queryOne(db, "SELECT * FROM scholarships WHERE id = ?", [schId]);
     db.run("DELETE FROM scholarships WHERE id = ?", [schId]);
     saveDb();
-    logAudit(db, loggedInStaff, 'delete', 'scholarship', schId, `Removed fee abatement record ${schId}`);
+    syncApplicantInstallmentPlans(db, id);
+    logAudit(db, loggedInStaff, 'delete', 'scholarship', schId, `Removed fee concession "${existing?.title || schId}" (${existing?.discount_type === 'percentage' ? `${existing?.value}%` : `LKR ${existing?.value || 0}`})`);
     res.json({ success: true });
   } catch (err: any) {
     if (err instanceof ValidationError || err?.name === 'ValidationError') {

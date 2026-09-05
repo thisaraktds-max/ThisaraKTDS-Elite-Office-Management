@@ -16,8 +16,10 @@ import {
   ListFilter,
   CreditCard,
   Pencil,
+  Trash2,
   X,
 } from 'lucide-react';
+import { ConfirmDialogModal } from '../components/modals/ConfirmDialogModal';
 
 interface FeesIncomeViewProps {
   onOpenNewIncome: () => void;
@@ -46,9 +48,11 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
   const [gradeFilter, setGradeFilter] = useState('all');
   const [search, setSearch] = useState('');
 
-  // New Fee Structure Modal
-  const [showAddFeeModal, setShowAddFeeModal] = useState(false);
-  const [newFee, setNewFee] = useState({
+  // Fee Structure Modal (Add & Edit) & Deletion
+  const [showFeeModal, setShowFeeModal] = useState(false);
+  const [editingFee, setEditingFee] = useState<FeeStructure | null>(null);
+  const [isSavingFee, setIsSavingFee] = useState(false);
+  const [feeForm, setFeeForm] = useState({
     academic_year: '2026-2027',
     grade: 'Grade 1',
     fee_type: 'Tuition',
@@ -56,6 +60,12 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
     is_compulsory: 1,
     description: 'Standard Annual Academic Tuition',
   });
+  const [feeToDelete, setFeeToDelete] = useState<FeeStructure | null>(null);
+  const [isDeletingFee, setIsDeletingFee] = useState(false);
+
+  // Income Deletion
+  const [incomeToDelete, setIncomeToDelete] = useState<Income | null>(null);
+  const [isDeletingIncome, setIsDeletingIncome] = useState(false);
 
   // Edit Income Modal
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
@@ -147,27 +157,125 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
     fetchData();
   }, []);
 
-  const handleAddFeeStructure = async (e: React.FormEvent) => {
+  const handleOpenAddFee = () => {
+    setEditingFee(null);
+    setFeeForm({
+      academic_year: '2026-2027',
+      grade: 'Grade 1',
+      fee_type: 'Tuition',
+      amount: '145000',
+      is_compulsory: 1,
+      description: 'Standard Annual Academic Tuition',
+    });
+    setShowFeeModal(true);
+  };
+
+  const handleOpenEditFee = (fee: FeeStructure) => {
+    setEditingFee(fee);
+    setFeeForm({
+      academic_year: fee.academic_year || '2026-2027',
+      grade: fee.grade || 'Grade 1',
+      fee_type: fee.fee_type || 'Tuition',
+      amount: String(fee.amount || ''),
+      is_compulsory: fee.is_compulsory ?? 1,
+      description: fee.description || '',
+    });
+    setShowFeeModal(true);
+  };
+
+  const handleSaveFeeStructure = async (e: React.FormEvent) => {
     e.preventDefault();
+    const numAmount = Number(feeForm.amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      showToast('Please enter a valid amount greater than 0', 'error');
+      return;
+    }
+    setIsSavingFee(true);
     try {
-      const res = await fetch('/api/fees', {
-        method: 'POST',
+      const url = editingFee ? `/api/fees/${editingFee.id}` : '/api/fees';
+      const method = editingFee ? 'PUT' : 'POST';
+      const res = await fetch(url, {
+        method,
         headers: getHeaders(),
         body: JSON.stringify({
-          ...newFee,
-          amount: Number(newFee.amount),
+          academic_year: feeForm.academic_year,
+          grade: feeForm.grade,
+          fee_type: feeForm.fee_type,
+          amount: numAmount,
+          is_compulsory: feeForm.is_compulsory,
+          description: feeForm.description,
         }),
       });
       if (res.ok) {
-        showToast('Fee structure item registered successfully', 'success');
-        setShowAddFeeModal(false);
-        fetchData();
+        showToast(
+          editingFee
+            ? `Fee schedule rule for ${feeForm.grade} (${feeForm.fee_type}) updated`
+            : 'Fee structure item registered successfully',
+          'success'
+        );
+        setShowFeeModal(false);
+        setEditingFee(null);
+        await fetchData();
       } else {
         const data = await res.json();
-        showToast(data.error || 'Failed to add fee structure', 'error');
+        showToast(data.error || 'Failed to save fee structure', 'error');
       }
     } catch (err) {
-      showToast('Failed to add fee structure', 'error');
+      showToast('Failed to save fee structure', 'error');
+    } finally {
+      setIsSavingFee(false);
+    }
+  };
+
+  const handleConfirmDeleteFee = async () => {
+    if (!feeToDelete) return;
+    setIsDeletingFee(true);
+    try {
+      const res = await fetch(`/api/fees/${feeToDelete.id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      if (res.ok) {
+        showToast(
+          `Fee schedule rule "${feeToDelete.fee_type}" for ${feeToDelete.grade} deleted`,
+          'success'
+        );
+        setFeeToDelete(null);
+        await fetchData();
+      } else {
+        const data = await res.json();
+        showToast(data.error || 'Failed to delete fee rule', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to delete fee rule', 'error');
+    } finally {
+      setIsDeletingFee(false);
+    }
+  };
+
+  const handleConfirmDeleteIncome = async () => {
+    if (!incomeToDelete) return;
+    setIsDeletingIncome(true);
+    try {
+      const res = await fetch(`/api/income/${incomeToDelete.id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      if (res.ok) {
+        showToast(
+          `Receipt #${incomeToDelete.receipt_no} reversed and deleted. Student balance updated.`,
+          'success'
+        );
+        setIncomeToDelete(null);
+        await fetchData();
+      } else {
+        const data = await res.json();
+        showToast(data.error || 'Failed to reverse income entry', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to reverse income entry', 'error');
+    } finally {
+      setIsDeletingIncome(false);
     }
   };
 
@@ -271,7 +379,7 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
             </button>
           ) : (
             <button
-              onClick={() => setShowAddFeeModal(true)}
+              onClick={handleOpenAddFee}
               className="btn btn-primary text-xs flex items-center gap-1.5"
             >
               <Plus className="w-3.5 h-3.5" />
@@ -464,6 +572,14 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
                                       <Printer className="w-3.5 h-3.5 shrink-0" />
                                       <span className="leading-none">Receipt</span>
                                     </button>
+                                    <button
+                                      onClick={() => setIncomeToDelete(inc)}
+                                      className="btn btn-ghost !h-7 !px-2 text-xs inline-flex items-center justify-center gap-1 text-destructive hover:bg-destructive/10 rounded-md leading-none whitespace-nowrap"
+                                      title="Reverse / Delete Income Entry"
+                                    >
+                                      <Trash2 className="w-3 h-3 shrink-0" />
+                                      <span className="hidden sm:inline leading-none">Delete</span>
+                                    </button>
                                   </div>
                                 </td>
                               </tr>
@@ -562,6 +678,14 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
                               <Printer className="w-3.5 h-3.5 shrink-0" />
                               <span className="leading-none">Receipt</span>
                             </button>
+                            <button
+                              onClick={() => setIncomeToDelete(inc)}
+                              className="btn btn-ghost !h-7 !px-2 text-xs inline-flex items-center justify-center gap-1 text-destructive hover:bg-destructive/10 rounded-md leading-none whitespace-nowrap"
+                              title="Reverse / Delete Income Entry"
+                            >
+                              <Trash2 className="w-3 h-3 shrink-0" />
+                              <span className="hidden sm:inline leading-none">Delete</span>
+                            </button>
                           </div>
                         </td>
                       </tr>
@@ -605,6 +729,7 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
                   <th>Description</th>
                   <th>Requirement</th>
                   <th className="text-right">Standard Amount</th>
+                  <th className="text-right w-28">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -624,22 +749,57 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
                     <td className="text-right mono font-bold text-xs text-foreground">
                       LKR {Number(fee.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </td>
+                    <td className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        <button
+                          onClick={() => handleOpenEditFee(fee)}
+                          className="btn btn-ghost !h-7 !px-2 text-xs inline-flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground rounded-md leading-none"
+                          title="Edit Fee Rule"
+                        >
+                          <Pencil className="w-3 h-3" />
+                          <span className="hidden sm:inline">Edit</span>
+                        </button>
+                        <button
+                          onClick={() => setFeeToDelete(fee)}
+                          className="btn btn-ghost !h-7 !px-2 text-xs inline-flex items-center justify-center gap-1 text-destructive hover:bg-destructive/10 rounded-md leading-none"
+                          title="Delete Fee Rule"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span className="hidden sm:inline">Delete</span>
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 ))}
+                {feeStructures.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="p-4">
+                      <EmptyState
+                        iconType="ledger"
+                        title="No Fee Structures Defined"
+                        description="No academic fee rules exist yet."
+                        actionLabel="Add Fee Schedule Rule"
+                        onAction={handleOpenAddFee}
+                      />
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* Add Fee Schedule Modal */}
-      {showAddFeeModal && (
-        <div className="modal-backdrop" onClick={() => setShowAddFeeModal(false)}>
+      {/* Fee Schedule Modal (Add & Edit) */}
+      {showFeeModal && (
+        <div className="modal-backdrop" onClick={() => { setShowFeeModal(false); setEditingFee(null); }}>
           <div className="modal !max-w-md" onClick={e => e.stopPropagation()}>
             <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Fee Management</div>
-            <h3 className="text-lg font-serif font-bold text-foreground mb-4">Register New Fee Schedule Item</h3>
+            <h3 className="text-lg font-serif font-bold text-foreground mb-4">
+              {editingFee ? 'Edit Fee Schedule Rule' : 'Register New Fee Schedule Item'}
+            </h3>
 
-            <form onSubmit={handleAddFeeStructure} className="space-y-3">
+            <form onSubmit={handleSaveFeeStructure} className="space-y-3">
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-semibold mb-1">Academic Year</label>
@@ -647,16 +807,16 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
                     type="text"
                     required
                     className="input"
-                    value={newFee.academic_year}
-                    onChange={e => setNewFee({ ...newFee, academic_year: e.target.value })}
+                    value={feeForm.academic_year}
+                    onChange={e => setFeeForm({ ...feeForm, academic_year: e.target.value })}
                   />
                 </div>
                 <div>
                   <label className="block text-xs font-semibold mb-1">Grade Level</label>
                   <select
                     className="select"
-                    value={newFee.grade}
-                    onChange={e => setNewFee({ ...newFee, grade: e.target.value })}
+                    value={feeForm.grade}
+                    onChange={e => setFeeForm({ ...feeForm, grade: e.target.value })}
                   >
                     <option value="Kindergarten">Kindergarten</option>
                     <option value="Grade 1">Grade 1</option>
@@ -680,8 +840,8 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
                   <label className="block text-xs font-semibold mb-1">Fee Type</label>
                   <select
                     className="select"
-                    value={newFee.fee_type}
-                    onChange={e => setNewFee({ ...newFee, fee_type: e.target.value })}
+                    value={feeForm.fee_type}
+                    onChange={e => setFeeForm({ ...feeForm, fee_type: e.target.value })}
                   >
                     <option value="Tuition">Tuition Fee</option>
                     <option value="Registration">Registration / Matriculation</option>
@@ -691,17 +851,29 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold mb-1">Amount (LKR)</label>
-                  <input
-                    type="number"
-                    step="1"
-                    min="0"
-                    required
-                    className="input font-mono font-bold"
-                    value={newFee.amount}
-                    onChange={e => setNewFee({ ...newFee, amount: e.target.value })}
-                  />
+                  <label className="block text-xs font-semibold mb-1">Requirement</label>
+                  <select
+                    className="select"
+                    value={feeForm.is_compulsory}
+                    onChange={e => setFeeForm({ ...feeForm, is_compulsory: Number(e.target.value) })}
+                  >
+                    <option value={1}>Compulsory (Mandatory)</option>
+                    <option value={0}>Optional (Elective)</option>
+                  </select>
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1">Amount (LKR)</label>
+                <input
+                  type="number"
+                  step="1"
+                  min="0"
+                  required
+                  className="input font-mono font-bold"
+                  value={feeForm.amount}
+                  onChange={e => setFeeForm({ ...feeForm, amount: e.target.value })}
+                />
               </div>
 
               <div>
@@ -709,14 +881,27 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
                 <input
                   type="text"
                   className="input"
-                  value={newFee.description}
-                  onChange={e => setNewFee({ ...newFee, description: e.target.value })}
+                  value={feeForm.description}
+                  onChange={e => setFeeForm({ ...feeForm, description: e.target.value })}
                 />
               </div>
 
               <div className="flex justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setShowAddFeeModal(false)} className="btn btn-ghost text-xs">Cancel</button>
-                <button type="submit" className="btn btn-primary text-xs">Save Schedule Item</button>
+                <button
+                  type="button"
+                  onClick={() => { setShowFeeModal(false); setEditingFee(null); }}
+                  className="btn btn-ghost text-xs"
+                  disabled={isSavingFee}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary text-xs"
+                  disabled={isSavingFee}
+                >
+                  {isSavingFee ? 'Saving...' : editingFee ? 'Update Fee Rule' : 'Save Schedule Item'}
+                </button>
               </div>
             </form>
           </div>
@@ -877,6 +1062,44 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
           </div>
         </div>
       )}
+
+      {/* Delete Fee Rule Confirmation Modal */}
+      <ConfirmDialogModal
+        isOpen={!!feeToDelete}
+        onClose={() => setFeeToDelete(null)}
+        onConfirm={handleConfirmDeleteFee}
+        title="Delete Fee Schedule Rule"
+        message={`Are you sure you want to permanently delete the standard ${feeToDelete?.fee_type} fee rule (${feeToDelete?.grade}, ${feeToDelete?.academic_year})?`}
+        confirmText="Delete Fee Rule"
+        variant="danger"
+        isConfirming={isDeletingFee}
+        warningDetails={[
+          `Amount: LKR ${Number(feeToDelete?.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+          'This removes this fee prescription from the institutional structure matrix.',
+          "This affects every student's expected-fee calculation for this grade and academic year going forward.",
+          'Historical payments and receipts already issued will not be altered.',
+          'This action is permanently logged in the staff audit trail.',
+        ]}
+      />
+
+      {/* Delete / Reverse Income Receipt Confirmation Modal */}
+      <ConfirmDialogModal
+        isOpen={!!incomeToDelete}
+        onClose={() => setIncomeToDelete(null)}
+        onConfirm={handleConfirmDeleteIncome}
+        title="Reverse & Delete Income Receipt"
+        message={`Are you sure you want to permanently reverse and delete receipt #${incomeToDelete?.receipt_no} from ${incomeToDelete?.payer_name}?`}
+        confirmText="Reverse & Delete Receipt"
+        variant="danger"
+        isConfirming={isDeletingIncome}
+        warningDetails={[
+          `Amount to be reversed: LKR ${Number(incomeToDelete?.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} (${incomeToDelete?.payment_method || 'Payment'})`,
+          'This removes the payment from school revenue, income ledger, and cash flow reports.',
+          'The linked student balance will immediately increase by this amount.',
+          'Any linked installment schedules will automatically re-calculate and show as pending.',
+          'This reversal is permanently logged in the staff audit trail.',
+        ]}
+      />
     </div>
   );
 };

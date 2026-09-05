@@ -16,8 +16,10 @@ import {
   Award,
   AlertTriangle,
   Edit3,
+  Trash2,
   X,
 } from 'lucide-react';
+import { ConfirmDialogModal } from '../components/modals/ConfirmDialogModal';
 
 interface ConflictWarning {
   conflictWith: {
@@ -97,6 +99,10 @@ export const AssessmentsView: React.FC<{ onOpenDossier: (id: string) => void }> 
     recommendation: 'Recommend Full Admission',
     notes: '',
   });
+
+  // Deletion modal state
+  const [assessmentToDelete, setAssessmentToDelete] = useState<Assessment | null>(null);
+  const [isDeletingAssessment, setIsDeletingAssessment] = useState(false);
 
   // Conflict warning state
   const [conflictWarning, setConflictWarning] = useState<ConflictWarning | null>(null);
@@ -287,6 +293,29 @@ export const AssessmentsView: React.FC<{ onOpenDossier: (id: string) => void }> 
     }
   };
 
+  const handleConfirmDeleteAssessment = async () => {
+    if (!assessmentToDelete) return;
+    setIsDeletingAssessment(true);
+    try {
+      const res = await fetch(`/api/assessments/${assessmentToDelete.id}`, {
+        method: 'DELETE',
+        headers: getHeaders(),
+      });
+      if (res.ok) {
+        showToast(`Cancelled assessment for ${assessmentToDelete.applicant_name}`, 'success');
+        setAssessmentToDelete(null);
+        fetchAssessments();
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showToast(errData.error || 'Failed to cancel assessment', 'error');
+      }
+    } catch (err) {
+      showToast('Failed to cancel assessment', 'error');
+    } finally {
+      setIsDeletingAssessment(false);
+    }
+  };
+
   const filtered = assessments.filter(a => {
     if (filterStatus !== 'all' && a.status.toLowerCase() !== filterStatus.toLowerCase()) {
       return false;
@@ -462,6 +491,14 @@ export const AssessmentsView: React.FC<{ onOpenDossier: (id: string) => void }> 
                             Dossier
                           </button>
                         )}
+                        <button
+                          onClick={() => setAssessmentToDelete(ass)}
+                          className="btn btn-ghost !py-1 !px-2 text-xs text-destructive hover:bg-destructive/10 inline-flex items-center justify-center gap-1 rounded-md leading-none"
+                          title="Cancel / Delete Assessment"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                          <span className="hidden sm:inline">Delete</span>
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -810,6 +847,26 @@ export const AssessmentsView: React.FC<{ onOpenDossier: (id: string) => void }> 
           </div>
         </div>
       )}
+
+      {/* Cancel / Delete Assessment Confirmation Modal */}
+      <ConfirmDialogModal
+        isOpen={!!assessmentToDelete}
+        onClose={() => setAssessmentToDelete(null)}
+        onConfirm={handleConfirmDeleteAssessment}
+        title="Cancel Assessment Appointment"
+        message={`Are you sure you want to permanently delete or cancel the assessment for ${assessmentToDelete?.applicant_name}?`}
+        confirmText="Delete Assessment"
+        variant="danger"
+        isConfirming={isDeletingAssessment}
+        warningDetails={[
+          `Candidate: ${assessmentToDelete?.applicant_name} (${assessmentToDelete?.grade})`,
+          `Assessment: ${assessmentToDelete?.assessment_type} with ${assessmentToDelete?.interviewer_name}`,
+          `Scheduled Window: ${formatAssessmentDateTime(assessmentToDelete?.scheduled_at || '')} (${assessmentToDelete?.duration_minutes || 30} mins)`,
+          assessmentToDelete?.status === 'Completed' ? `Evaluation: Completed (Score: ${assessmentToDelete.score}/${assessmentToDelete.max_score})` : 'Status: Scheduled / Pending evaluation',
+          'The assessment appointment will be permanently removed from the testing calendar.',
+          'This cancellation is recorded in the administrative staff audit trail.',
+        ]}
+      />
     </div>
   );
 };

@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
-import { X, Printer, Award, Check } from 'lucide-react';
+import { X, Printer, Award, Download, Loader2 } from 'lucide-react';
 import { Applicant } from '../../types';
+import { printElement, exportElementToPdf } from '../../utils/printDocument';
+import { useNotification } from '../../context/NotificationContext';
 
 interface OfferLetterModalProps {
   isOpen: boolean;
@@ -15,9 +17,14 @@ export const OfferLetterModal: React.FC<OfferLetterModalProps> = ({
   onClose,
   applicantId,
 }) => {
+  const { showToast } = useNotification();
   const [applicant, setApplicant] = useState<Applicant | null>(null);
   const [settings, setSettings] = useState<any>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [isPrinting, setIsPrinting] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
+
+  const letterRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen && applicantId) {
@@ -39,18 +46,50 @@ export const OfferLetterModal: React.FC<OfferLetterModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handlePrint = () => {
-    window.print();
+  const handlePrint = async () => {
+    if (!applicant || !letterRef.current) return;
+    setIsPrinting(true);
+    try {
+      const res = await printElement({
+        element: letterRef.current,
+        format: 'a4',
+        title: `Offer Letter - ${applicant.first_name} ${applicant.last_name}`,
+        filename: `offer_letter_${applicant.first_name}_${applicant.last_name}`,
+      });
+      if (res.fallbackUsed) {
+        showToast('Document opened in printable window or downloaded (sandbox fallback)', 'info');
+      } else {
+        showToast('Print dialog initiated', 'success');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Could not open print dialog. Attempting PDF download...', 'error');
+      handleDownloadPdf();
+    } finally {
+      setIsPrinting(false);
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!applicant || !letterRef.current) return;
+    setIsDownloading(true);
+    try {
+      await exportElementToPdf(
+        letterRef.current,
+        `offer_letter_${applicant.first_name}_${applicant.last_name}`,
+        'a4'
+      );
+      showToast('Offer letter downloaded as PDF', 'success');
+    } catch (err) {
+      console.error(err);
+      showToast('Failed to generate PDF letter', 'error');
+    } finally {
+      setIsDownloading(false);
+    }
   };
 
   return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
-      <style>{`
-        @page {
-          size: A4 portrait;
-          margin: 12mm 15mm;
-        }
-      `}</style>
       <div className="modal !max-w-3xl !p-6" onClick={e => e.stopPropagation()}>
         {/* Actions bar */}
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-border receipt-actions">
@@ -61,16 +100,36 @@ export const OfferLetterModal: React.FC<OfferLetterModalProps> = ({
           <div className="flex items-center gap-2">
             <button
               type="button"
-              onClick={handlePrint}
-              className="btn btn-primary !h-8 !px-3.5 inline-flex items-center justify-center gap-1.5 text-xs font-semibold whitespace-nowrap leading-none rounded-lg shadow-xs"
+              onClick={handleDownloadPdf}
+              disabled={isDownloading || isLoading}
+              className="btn btn-soft !h-8 !px-3 inline-flex items-center justify-center gap-1.5 rounded-lg text-xs font-medium whitespace-nowrap leading-none transition-all shadow-2xs cursor-pointer"
+              title="Download offline PDF document"
             >
-              <Printer className="w-3.5 h-3.5 shrink-0" />
-              <span className="inline-block leading-none">Print / Save PDF</span>
+              {isDownloading ? (
+                <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5 shrink-0 text-muted-foreground" />
+              )}
+              <span>PDF</span>
+            </button>
+            <button
+              type="button"
+              onClick={handlePrint}
+              disabled={isPrinting || isLoading}
+              className="btn btn-primary !h-8 !px-3.5 inline-flex items-center justify-center gap-1.5 text-xs font-semibold whitespace-nowrap leading-none rounded-lg shadow-xs cursor-pointer"
+              title="Print official letter"
+            >
+              {isPrinting ? (
+                <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" />
+              ) : (
+                <Printer className="w-3.5 h-3.5 shrink-0" />
+              )}
+              <span className="inline-block leading-none">{isPrinting ? 'Printing...' : 'Print'}</span>
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="btn-ghost !h-8 !w-8 inline-flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+              className="btn-ghost !h-8 !w-8 inline-flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0 cursor-pointer"
               title="Close"
               aria-label="Close"
             >
@@ -82,7 +141,10 @@ export const OfferLetterModal: React.FC<OfferLetterModalProps> = ({
         {isLoading || !applicant ? (
           <div className="p-8 text-center text-muted-foreground">Generating letter of admission...</div>
         ) : (
-          <div className="receipt-print bg-card border border-border p-10 rounded-xl shadow-sm text-foreground space-y-6">
+          <div
+            ref={letterRef}
+            className="receipt-print bg-card border border-border p-10 rounded-xl shadow-sm text-foreground space-y-6"
+          >
             {/* School Crest Header */}
             <div className="text-center border-b-2 border-primary/20 pb-6">
               {settings.school_logo_url ? (
