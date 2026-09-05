@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 import { useStaff } from '../../context/StaffContext';
 import { useNotification } from '../../context/NotificationContext';
 import { Staff } from '../../types';
@@ -28,6 +30,8 @@ export const StaffSwitchModal: React.FC = () => {
   } = useStaff();
   const { showToast } = useNotification();
 
+  useLockBodyScroll(isSwitchModalOpen);
+
   const [selectedStaff, setSelectedStaff] = useState<Staff | null>(null);
   const [pin, setPin] = useState('');
   const [pinError, setPinError] = useState('');
@@ -49,11 +53,6 @@ export const StaffSwitchModal: React.FC = () => {
     setIsChangingPin(false);
   };
 
-  const handleQuickPin = () => {
-    setPin('9999');
-    setPinError('');
-  };
-
   const handleVerifyPin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStaff) return;
@@ -61,14 +60,14 @@ export const StaffSwitchModal: React.FC = () => {
     setPinError('');
 
     try {
-      const res = await authenticateStaff(selectedStaff, pin || '9999');
+      const res = await authenticateStaff(selectedStaff, selectedStaff.has_pin ? pin : '');
       if (res.success) {
         showToast(`Switched active profile to ${selectedStaff.name} (${selectedStaff.role})`, 'success');
         closeSwitchModal();
         setSelectedStaff(null);
         setPin('');
       } else {
-        setPinError(res.error || 'Incorrect PIN code. Default is 9999.');
+        setPinError(res.error || 'Incorrect PIN code.');
       }
     } catch (err: any) {
       setPinError('Error verifying PIN code');
@@ -121,7 +120,7 @@ export const StaffSwitchModal: React.FC = () => {
     }
   };
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={closeSwitchModal}>
       <div
         className="modal !max-w-md text-left"
@@ -156,7 +155,9 @@ export const StaffSwitchModal: React.FC = () => {
               Select your staff identity. All audit stamps, receipts, approvals, and logs will be attributed to your session.
             </p>
             <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
-              {staffList.map((staff) => {
+              {staffList
+                .filter((s) => (s.is_active ?? s.active ?? 1) === 1)
+                .map((staff) => {
                 const isActive = activeStaff?.id === staff.id;
                 return (
                   <div
@@ -170,11 +171,15 @@ export const StaffSwitchModal: React.FC = () => {
                   >
                     <div className="flex items-center gap-3">
                       <div
-                        className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs ${
+                        className={`w-9 h-9 rounded-full flex items-center justify-center font-bold text-xs overflow-hidden flex-shrink-0 ${
                           isActive ? 'bg-primary text-primary-foreground' : 'bg-muted text-foreground'
                         }`}
                       >
-                        {staff.avatar_initials || staff.name.substring(0, 2).toUpperCase()}
+                        {staff.photo_url ? (
+                          <img src={staff.photo_url} alt={staff.name} className="w-full h-full object-cover" />
+                        ) : (
+                          staff.avatar_initials || staff.name.substring(0, 2).toUpperCase()
+                        )}
                       </div>
                       <div>
                         <div className="font-semibold text-xs text-foreground flex items-center gap-2">
@@ -190,7 +195,13 @@ export const StaffSwitchModal: React.FC = () => {
                     </div>
 
                     <div className="flex items-center gap-2">
-                      <KeyRound className="w-3.5 h-3.5 text-muted-foreground opacity-60" />
+                      {!staff.has_pin ? (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 font-mono font-medium">
+                          No PIN
+                        </span>
+                      ) : (
+                        <KeyRound className="w-3.5 h-3.5 text-muted-foreground opacity-60" />
+                      )}
                       <UserCheck className={`w-4 h-4 ${isActive ? 'text-primary' : 'text-muted-foreground/40'}`} />
                     </div>
                   </div>
@@ -222,8 +233,12 @@ export const StaffSwitchModal: React.FC = () => {
           <form onSubmit={handleVerifyPin} className="space-y-4">
             <div className="flex items-center justify-between p-3 bg-muted/30 rounded-xl border border-border">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm">
-                  {selectedStaff.avatar_initials || selectedStaff.name.substring(0, 2).toUpperCase()}
+                <div className="w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm overflow-hidden flex-shrink-0">
+                  {selectedStaff.photo_url ? (
+                    <img src={selectedStaff.photo_url} alt={selectedStaff.name} className="w-full h-full object-cover" />
+                  ) : (
+                    selectedStaff.avatar_initials || selectedStaff.name.substring(0, 2).toUpperCase()
+                  )}
                 </div>
                 <div>
                   <div className="font-bold text-sm text-foreground">{selectedStaff.name}</div>
@@ -242,43 +257,42 @@ export const StaffSwitchModal: React.FC = () => {
               </button>
             </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-1.5">
-                <label className="text-[11px] font-mono uppercase tracking-wider text-muted-foreground font-semibold">
+            {selectedStaff.has_pin ? (
+              <div>
+                <label className="block text-[11px] font-mono uppercase tracking-wider text-muted-foreground font-semibold mb-1.5">
                   Enter 4-Digit Staff PIN
                 </label>
-                <button
-                  type="button"
-                  onClick={handleQuickPin}
-                  className="text-[10px] font-mono text-primary font-medium flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded cursor-pointer"
-                >
-                  <Sparkles className="w-2.5 h-2.5" />
-                  <span>Default (9999)</span>
-                </button>
+
+                <input
+                  type="password"
+                  inputMode="numeric"
+                  maxLength={6}
+                  autoFocus
+                  required
+                  value={pin}
+                  onChange={(e) => {
+                    setPin(e.target.value);
+                    setPinError('');
+                  }}
+                  placeholder="••••"
+                  className="input text-center text-xl tracking-[0.3em] font-mono font-bold w-full"
+                />
+
+                {pinError && (
+                  <div className="flex items-center gap-1.5 mt-2 text-xs text-destructive">
+                    <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                    <span>{pinError}</span>
+                  </div>
+                )}
               </div>
-
-              <input
-                type="password"
-                inputMode="numeric"
-                maxLength={6}
-                autoFocus
-                required
-                value={pin}
-                onChange={(e) => {
-                  setPin(e.target.value);
-                  setPinError('');
-                }}
-                placeholder="••••"
-                className="input text-center text-xl tracking-[0.3em] font-mono font-bold w-full"
-              />
-
-              {pinError && (
-                <div className="flex items-center gap-1.5 mt-2 text-xs text-destructive">
-                  <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span>{pinError}</span>
+            ) : (
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-center space-y-1">
+                <div className="text-xs font-semibold text-amber-700 dark:text-amber-400">No Security PIN Required</div>
+                <div className="text-[11px] text-muted-foreground">
+                  This staff profile does not require a PIN code to switch.
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             <div className="flex items-center justify-between pt-2">
               <button
@@ -329,10 +343,10 @@ export const StaffSwitchModal: React.FC = () => {
               <input
                 type="password"
                 inputMode="numeric"
-                required
+                required={selectedStaff.has_pin}
                 value={currentPin}
                 onChange={(e) => setCurrentPin(e.target.value)}
-                placeholder="Default: 9999"
+                placeholder={selectedStaff.has_pin ? "Enter current PIN" : "None required (profile has no PIN)"}
                 className="input w-full font-mono text-center tracking-widest text-sm"
               />
             </div>
@@ -394,6 +408,7 @@ export const StaffSwitchModal: React.FC = () => {
           </form>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

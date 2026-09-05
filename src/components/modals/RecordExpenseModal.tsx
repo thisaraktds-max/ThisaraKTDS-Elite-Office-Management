@@ -1,4 +1,6 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 import { useStaff } from '../../context/StaffContext';
 import { useNotification } from '../../context/NotificationContext';
 import { X, CreditCard, Receipt, Building2 } from 'lucide-react';
@@ -30,8 +32,8 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.amount || Number(formData.amount) <= 0 || !formData.paid_to.trim()) {
-      showToast('Please provide a valid amount and payee name.', 'error');
+    if (formData.amount === '' || !formData.paid_to.trim()) {
+      showToast('Please provide an amount and payee name.', 'error');
       return;
     }
 
@@ -57,9 +59,11 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
     }
   };
 
+  useLockBodyScroll(isOpen);
+
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div
         className="modal !max-w-xl text-left"
@@ -212,6 +216,7 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

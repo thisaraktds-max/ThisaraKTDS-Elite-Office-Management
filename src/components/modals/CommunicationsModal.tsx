@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 import { useStaff } from '../../context/StaffContext';
 import { useNotification } from '../../context/NotificationContext';
 import { X, Send, Copy, MessageSquare, Check, Phone, Mail } from 'lucide-react';
@@ -71,25 +73,27 @@ export const CommunicationsModal: React.FC<CommunicationsModalProps> = ({
     const days = recipient.days_overdue || 30;
     const grade = recipient.grade || 'the enrolled grade';
     const schoolName = settings.school_name || 'Elite International School';
-    const schoolEmail = settings.email || 'office@eis.lk';
-    const schoolPhone = settings.phone || '+94 70 699 9333';
-    const schoolAddress = settings.address || '1/143, Akuressa Road, Matara, Sri Lanka';
+    const schoolEmail = settings.email || '[Email Not Set]';
+    const schoolPhone = settings.phone || '[Phone Not Set]';
+    const schoolAddress = settings.address || '[School Address Not Set]';
 
     let draft = '';
     if (templateType === 'tuition_reminder') {
-      draft = `Dear ${guardianName},\n\nThis is a friendly reminder from the Bursary & Accounts Office at ${schoolName}, Matara regarding ${studentName}'s academic account (${grade}).\n\nThere is currently an outstanding balance of ${balance} (now ${days} days past due). We kindly request that you settle this installment at your earliest convenience to ensure uninterrupted academic services.\n\nDirect Bank Remittance Details:\nBank: Commercial Bank of Ceylon | Matara Branch\nAccount Name: ${schoolName}\nAccount No: 1000 4892 0182\nPayment Reference: ${studentName} (${recipient.applicant_id || 'Student ID'})\n\nIf you have already made this payment or wish to discuss an installment schedule, please email ${schoolEmail} or call ${schoolPhone}.\n\nWarm regards,\nBursar & Finance Office\n${schoolName}\n${schoolAddress}\nTel: ${schoolPhone}`;
+      draft = `Dear ${guardianName},\n\nThis is a friendly reminder from the Bursary & Accounts Office at ${schoolName} regarding ${studentName}'s academic account (${grade}).\n\nThere is currently an outstanding balance of ${balance} (now ${days} days past due). We kindly request that you settle this installment at your earliest convenience to ensure uninterrupted academic services.\n\nDirect Bank Remittance Details:\nBank: Commercial Bank of Ceylon\nAccount Name: ${schoolName}\nAccount No: 1000 4892 0182\nPayment Reference: ${studentName} (${recipient.applicant_id || 'Student ID'})\n\nIf you have already made this payment or wish to discuss an installment schedule, please email ${schoolEmail} or call ${schoolPhone}.\n\nWarm regards,\nBursar & Finance Office\n${schoolName}\n${schoolAddress}\nTel: ${schoolPhone}`;
     } else if (templateType === 'document_request') {
-      draft = `Dear ${guardianName},\n\nWarm greetings from the Admissions Office at ${schoolName}, Matara.\n\nIn order to finalize the admissions dossier for ${studentName} (${grade}, Academic Year 2026-2027), we kindly request that you submit the pending credentials (Official Birth Certificate / Previous Academic Records / Medical Form) to our office or email them to ${schoolEmail}.\n\nPlease feel free to contact us at ${schoolPhone} if you need any clarification.\n\nBest regards,\nOffice of Admissions\n${schoolName}\n${schoolAddress}`;
+      draft = `Dear ${guardianName},\n\nWarm greetings from the Admissions Office at ${schoolName}.\n\nIn order to finalize the admissions dossier for ${studentName} (${grade}, Academic Year 2026-2027), we kindly request that you submit the pending credentials (Official Birth Certificate / Previous Academic Records / Medical Form) to our office or email them to ${schoolEmail}.\n\nPlease feel free to contact us at ${schoolPhone} if you need any clarification.\n\nBest regards,\nOffice of Admissions\n${schoolName}\n${schoolAddress}`;
     } else if (templateType === 'assessment_invite') {
-      draft = `Dear ${guardianName},\n\nWe are pleased to invite ${studentName} for the Admissions Assessment & Placement Session at ${schoolName}, Matara for ${grade}.\n\nSession Venue: Main Administration Building, ${schoolAddress}\nPlease bring a copy of previous academic report cards and writing materials.\n\nKindly contact us at ${schoolPhone} or reply to this message to confirm your family's attendance.\n\nWarm regards,\nAdmissions Committee\n${schoolName}`;
+      draft = `Dear ${guardianName},\n\nWe are pleased to invite ${studentName} for the Admissions Assessment & Placement Session at ${schoolName} for ${grade}.\n\nSession Venue: Main Administration Building, ${schoolAddress}\nPlease bring a copy of previous academic report cards and writing materials.\n\nKindly contact us at ${schoolPhone} or reply to this message to confirm your family's attendance.\n\nWarm regards,\nAdmissions Committee\n${schoolName}`;
     } else if (templateType === 'admission_offer') {
-      draft = `Dear ${guardianName},\n\nOn behalf of the Faculty Council and Board of Governors of ${schoolName}, Matara, we are delighted to offer ${studentName} admission for the 2026-2027 Academic Year (${grade})!\n\nYour official Letter of Provisional Admission and fee schedule are available. Please complete enrollment confirmation within 14 business days.\n\nCongratulations and a warm welcome to the Elite family!\n\nOffice of the Registrar\n${schoolName}\n${schoolAddress}\nEmail: ${schoolEmail} | Tel: ${schoolPhone}`;
+      draft = `Dear ${guardianName},\n\nOn behalf of the Faculty Council and Board of Governors of ${schoolName}, we are delighted to offer ${studentName} admission for the 2026-2027 Academic Year (${grade})!\n\nYour official Letter of Provisional Admission and fee schedule are available. Please complete enrollment confirmation within 14 business days.\n\nCongratulations and a warm welcome to the Elite family!\n\nOffice of the Registrar\n${schoolName}\n${schoolAddress}\nEmail: ${schoolEmail} | Tel: ${schoolPhone}`;
     } else {
-      draft = `Dear ${guardianName},\n\nGreetings from ${schoolName}, Matara regarding ${studentName}.\n\n[Please insert your custom notice or announcement here]\n\nBest regards,\nOffice of Administration\n${schoolName}\n${schoolAddress}\nTel: ${schoolPhone} | Email: ${schoolEmail}`;
+      draft = `Dear ${guardianName},\n\nGreetings from ${schoolName} regarding ${studentName}.\n\n[Please insert your custom notice or announcement here]\n\nBest regards,\nOffice of Administration\n${schoolName}\n${schoolAddress}\nTel: ${schoolPhone} | Email: ${schoolEmail}`;
     }
 
     setCustomDraft(draft);
   }, [recipient, templateType, settings]);
+
+  useLockBodyScroll(isOpen && !!recipient);
 
   if (!isOpen || !recipient) return null;
 
@@ -149,7 +153,7 @@ export const CommunicationsModal: React.FC<CommunicationsModalProps> = ({
     }
   };
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal !max-w-2xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
@@ -296,6 +300,7 @@ export const CommunicationsModal: React.FC<CommunicationsModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

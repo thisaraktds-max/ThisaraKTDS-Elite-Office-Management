@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useStaff } from '../../context/StaffContext';
 import { useNotification } from '../../context/NotificationContext';
+import { SchoolSettings } from '../../types';
 import {
   LayoutDashboard,
   Users,
@@ -23,6 +24,7 @@ import {
   Shield,
   CreditCard,
   Package,
+  Building2,
   HelpCircle,
   Maximize2,
   Minimize2,
@@ -60,6 +62,11 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [reminderCount, setReminderCount] = useState<number>(0);
   const [showNotificationsMenu, setShowNotificationsMenu] = useState(false);
   const notifMenuRef = useRef<HTMLDivElement>(null);
+  const [settings, setSettings] = useState<Partial<SchoolSettings>>({
+    school_name: 'Elite International School',
+    tagline: 'Scientia est Infinita',
+    school_logo_url: '',
+  });
 
   const [isDarkMode, setIsDarkMode] = useState<boolean>(() => {
     const savedTheme = localStorage.getItem('elite_theme');
@@ -99,28 +106,75 @@ export const AppShell: React.FC<AppShellProps> = ({
   };
 
   useEffect(() => {
-    // Fetch reminder count
-    const fetchReminderCount = async () => {
+    let isMounted = true;
+
+    // Fetch reminder count with resilient parsing and retry
+    const fetchReminderCount = async (retries = 2) => {
       try {
         const res = await fetch('/api/reminders');
-        if (res.ok) {
+        if (!isMounted) return;
+
+        const contentType = res.headers.get('content-type');
+        if (res.ok && contentType && contentType.includes('application/json')) {
           const data = await res.json();
+          if (!isMounted) return;
           const total =
             (data.overdueBalances?.length || 0) +
             (data.stalledApplicants?.length || 0) +
             (data.upcomingAssessments?.length || 0);
           setReminderCount(total);
+        } else if (retries > 0) {
+          // If server is initializing or returning non-json during reboot, retry
+          setTimeout(() => {
+            if (isMounted) fetchReminderCount(retries - 1);
+          }, 1500);
         }
       } catch (err) {
-        console.error('Failed to load reminders count:', err);
+        if (retries > 0) {
+          setTimeout(() => {
+            if (isMounted) fetchReminderCount(retries - 1);
+          }, 1500);
+        } else {
+          // Soft warn without crashing console error reporter
+          console.warn('Reminders count temporarily unavailable');
+        }
       }
     };
+
     fetchReminderCount();
-    const interval = setInterval(fetchReminderCount, 30000);
-    return () => clearInterval(interval);
+    const interval = setInterval(() => fetchReminderCount(1), 30000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
   }, []);
 
   // Close notifications menu on outside click
+  useEffect(() => {
+    let isMounted = true;
+    const fetchSettings = async () => {
+      try {
+        const res = await fetch('/api/settings');
+        if (res.ok && isMounted) {
+          const data = await res.json();
+          setSettings(data);
+        }
+      } catch (e) {
+        // Silently catch
+      }
+    };
+    fetchSettings();
+
+    const handleSettingsUpdated = () => {
+      fetchSettings();
+    };
+    window.addEventListener('school_settings_updated', handleSettingsUpdated);
+    return () => {
+      isMounted = false;
+      window.removeEventListener('school_settings_updated', handleSettingsUpdated);
+    };
+  }, []);
+
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (notifMenuRef.current && !notifMenuRef.current.contains(e.target as Node)) {
@@ -150,10 +204,13 @@ export const AppShell: React.FC<AppShellProps> = ({
   // Group nav items by section
   const sections = ['Overview', 'Admissions', 'Bursary & Finance', 'Operations', 'Administration'];
 
+  const schoolDisplayName = settings.school_name || 'Elite International School';
+  const schoolDisplayTagline = settings.tagline || 'Matara';
+
   const getPageTitle = () => {
     if (currentView === 'dossier') return 'Applicant Dossier & Records';
     const found = navItems.find((i) => i.id === currentView);
-    return found ? found.label : 'Elite International School';
+    return found ? found.label : schoolDisplayName;
   };
 
   return (
@@ -163,20 +220,26 @@ export const AppShell: React.FC<AppShellProps> = ({
         <div className="flex flex-col flex-1 min-h-0">
           {/* School Brand Mark */}
           <div className="flex items-center gap-3 px-2.5 py-3 mb-2 border-b border-sidebar-border flex-shrink-0">
-            <div className="w-10 h-10 rounded-xl bg-white/10 p-1 border border-sidebar-border/80 flex-shrink-0 flex items-center justify-center shadow-xs">
-              <img
-                src="/school-logo.png"
-                alt="Elite International School"
-                className="w-full h-full object-contain rounded-md"
-                referrerPolicy="no-referrer"
-              />
+            <div className="w-10 h-10 rounded-xl bg-white/10 p-1 border border-sidebar-border/80 flex-shrink-0 flex items-center justify-center shadow-xs overflow-hidden">
+              {settings.school_logo_url ? (
+                <img
+                  src={settings.school_logo_url}
+                  alt={schoolDisplayName}
+                  className="w-full h-full object-contain rounded-md"
+                  referrerPolicy="no-referrer"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center font-serif font-bold text-sidebar-foreground text-base">
+                  {schoolDisplayName.substring(0, 2).toUpperCase()}
+                </div>
+              )}
             </div>
             <div className="min-w-0 flex-1 flex flex-col justify-center">
-              <h1 className="font-serif font-bold text-[13.5px] leading-[1.22] text-sidebar-foreground tracking-tight">
-                Elite International School
+              <h1 className="font-serif font-bold text-[13.5px] leading-[1.22] text-sidebar-foreground tracking-tight line-clamp-2">
+                {schoolDisplayName}
               </h1>
-              <p className="text-[10px] uppercase font-mono tracking-widest text-sidebar-foreground/60 mt-1 font-medium">
-                Matara
+              <p className="text-[10px] uppercase font-mono tracking-widest text-sidebar-foreground/60 mt-1 font-medium truncate">
+                {schoolDisplayTagline}
               </p>
             </div>
           </div>
@@ -231,8 +294,12 @@ export const AppShell: React.FC<AppShellProps> = ({
             title="Click to Switch Active Staff Profile"
           >
             <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-xs">
-                {activeStaff?.avatar_initials || 'MP'}
+              <div className="w-8 h-8 rounded-full bg-accent text-accent-foreground flex items-center justify-center font-bold text-xs flex-shrink-0 shadow-xs overflow-hidden">
+                {activeStaff?.photo_url ? (
+                  <img src={activeStaff.photo_url} alt={activeStaff.name} className="w-full h-full object-cover" />
+                ) : (
+                  activeStaff?.avatar_initials || 'MP'
+                )}
               </div>
               <div className="overflow-hidden">
                 <div className="text-xs font-semibold text-sidebar-foreground truncate flex items-center gap-1.5">

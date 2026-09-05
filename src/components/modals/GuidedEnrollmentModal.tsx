@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 import { useStaff } from '../../context/StaffContext';
 import { useNotification } from '../../context/NotificationContext';
 import { Family } from '../../types';
@@ -237,6 +239,8 @@ export const GuidedEnrollmentModal: React.FC<GuidedEnrollmentModalProps> = ({
     }
   };
 
+  useLockBodyScroll(isOpen);
+
   if (!isOpen) return null;
 
   const netTuition =
@@ -254,7 +258,7 @@ export const GuidedEnrollmentModal: React.FC<GuidedEnrollmentModalProps> = ({
     { num: 5, label: 'Review & Enroll', icon: Award },
   ];
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal !max-w-3xl" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -745,6 +749,7 @@ export const GuidedEnrollmentModal: React.FC<GuidedEnrollmentModalProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

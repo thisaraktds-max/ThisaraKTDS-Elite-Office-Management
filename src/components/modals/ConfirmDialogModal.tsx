@@ -1,4 +1,6 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
+import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 import { AlertTriangle, Trash2, X, AlertCircle } from 'lucide-react';
 
 interface ConfirmDialogProps {
@@ -26,9 +28,11 @@ export const ConfirmDialogModal: React.FC<ConfirmDialogProps> = ({
   isConfirming = false,
   warningDetails,
 }) => {
+  useLockBodyScroll(isOpen);
+
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal !max-w-md" onClick={e => e.stopPropagation()}>
         <div className="flex items-start justify-between pb-3 mb-3 border-b border-border">
@@ -106,6 +110,7 @@ export const ConfirmDialogModal: React.FC<ConfirmDialogProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 import { useStaff } from '../../context/StaffContext';
 import { useNotification } from '../../context/NotificationContext';
 import { Applicant } from '../../types';
@@ -72,8 +74,8 @@ export const RecordIncomeModal: React.FC<RecordIncomeModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formData.amount || Number(formData.amount) <= 0 || !formData.payer_name) {
-      showToast('Please provide a valid amount and payer name.', 'error');
+    if (formData.amount === '' || !formData.payer_name.trim()) {
+      showToast('Please provide an amount and payer name.', 'error');
       return;
     }
 
@@ -99,9 +101,11 @@ export const RecordIncomeModal: React.FC<RecordIncomeModalProps> = ({
     }
   };
 
+  useLockBodyScroll(isOpen);
+
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal !max-w-xl" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-border">
@@ -239,6 +243,7 @@ export const RecordIncomeModal: React.FC<RecordIncomeModalProps> = ({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

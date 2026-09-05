@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 import { X, Printer, Award, Check } from 'lucide-react';
 import { Applicant } from '../../types';
 
@@ -33,14 +35,22 @@ export const OfferLetterModal: React.FC<OfferLetterModalProps> = ({
     }
   }, [isOpen, applicantId]);
 
+  useLockBodyScroll(isOpen && !!applicantId);
+
   if (!isOpen) return null;
 
   const handlePrint = () => {
     window.print();
   };
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
+      <style>{`
+        @page {
+          size: A4 portrait;
+          margin: 12mm 15mm;
+        }
+      `}</style>
       <div className="modal !max-w-3xl !p-6" onClick={e => e.stopPropagation()}>
         {/* Actions bar */}
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-border receipt-actions">
@@ -49,12 +59,22 @@ export const OfferLetterModal: React.FC<OfferLetterModalProps> = ({
             <span className="font-semibold text-sm">Official Letter of Admission</span>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={handlePrint} className="btn btn-primary flex items-center gap-2 text-xs">
-              <Printer className="w-4 h-4" />
-              Print / Save PDF
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="btn btn-primary !h-8 !px-3.5 inline-flex items-center justify-center gap-1.5 text-xs font-semibold whitespace-nowrap leading-none rounded-lg shadow-xs"
+            >
+              <Printer className="w-3.5 h-3.5 shrink-0" />
+              <span className="inline-block leading-none">Print / Save PDF</span>
             </button>
-            <button onClick={onClose} className="btn-ghost p-1.5 rounded-lg text-muted-foreground">
-              <X className="w-5 h-5" />
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-ghost !h-8 !w-8 inline-flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+              title="Close"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4 shrink-0" />
             </button>
           </div>
         </div>
@@ -65,22 +85,24 @@ export const OfferLetterModal: React.FC<OfferLetterModalProps> = ({
           <div className="receipt-print bg-card border border-border p-10 rounded-xl shadow-sm text-foreground space-y-6">
             {/* School Crest Header */}
             <div className="text-center border-b-2 border-primary/20 pb-6">
-              <div className="w-16 h-16 rounded-2xl border border-border/80 p-1.5 bg-muted/40 flex items-center justify-center mx-auto mb-3 shadow-sm">
-                <img
-                  src="/school-logo.png"
-                  alt="School Logo"
-                  className="w-full h-full object-contain"
-                  referrerPolicy="no-referrer"
-                />
-              </div>
+              {settings.school_logo_url ? (
+                <div className="w-16 h-16 rounded-2xl border border-border/80 p-1.5 bg-muted/40 flex items-center justify-center mx-auto mb-3 shadow-sm">
+                  <img
+                    src={settings.school_logo_url}
+                    alt={settings.school_name || 'School Logo'}
+                    className="w-full h-full object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              ) : null}
               <h1 className="font-serif font-bold text-2xl tracking-wide text-primary uppercase">
                 {settings.school_name || 'Elite International School'}
               </h1>
               <p className="text-xs uppercase tracking-widest text-muted-foreground font-mono mt-1">
-                Office of Admissions & Academic Council • Matara
+                Office of Admissions & Academic Council
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                {settings.address || '1/143, Akuressa Road, Matara, Sri Lanka'} • {settings.email || 'office@eis.lk'} • Tel: {settings.phone || '+94 70 699 9333'}
+                {settings.address || '[School Address Not Set]'} • {settings.email || '[Email Not Set]'} • Tel: {settings.phone || '[Phone Not Set]'}
               </p>
               {settings.tagline && (
                 <p className="text-[11px] font-serif italic text-primary/80 mt-1">
@@ -166,6 +188,7 @@ export const OfferLetterModal: React.FC<OfferLetterModalProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

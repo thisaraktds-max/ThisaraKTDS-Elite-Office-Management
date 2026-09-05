@@ -1,4 +1,6 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
+import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 import {
   X,
   HelpCircle,
@@ -84,7 +86,6 @@ export const HelpReferenceModal: React.FC<HelpReferenceModalProps> = ({
       ],
       tips: [
         'The import tool automatically handles sibling grouping and creates shared Household records for you.',
-        'A full backup snapshot is automatically preserved before any bulk write occurs.',
       ],
     },
     {
@@ -116,7 +117,7 @@ export const HelpReferenceModal: React.FC<HelpReferenceModalProps> = ({
       targetActionLabel: 'Open Assets & Inventory',
       steps: [
         'Navigate to Assets & Inventory from the Operations section in the left sidebar.',
-        'Review the KPI banner showing Total Asset Valuation, Active Inventory Items, and In-Maintenance gear.',
+        'Review the KPI banner showing Active Inventory Value, Total Registered Assets, Operational Condition %, and Retired / Decommissioned items.',
         'Click "Register New Asset" to add school equipment.',
         'Fill in Item Name, Category (IT / Electronics, Classroom Furniture, Lab Equipment, Musical Instruments, Sports Gear), Serial / Barcode Number, Purchase Date, Cost (LKR), Assigned Location, and Condition (New, Good, Fair, Damaged).',
         'To edit or reassign an item: Click the edit icon on the asset card, change the assigned department/room, or update the condition.',
@@ -137,13 +138,13 @@ export const HelpReferenceModal: React.FC<HelpReferenceModalProps> = ({
         'Navigate to Outstanding Balances or open any Student Dossier.',
         'Click "Send Notice" or the Paper Airplane icon beside a student.',
         'Select the Notice Template: Tuition Overdue Reminder, Admission Offer Letter, Assessment Result, or Custom Announcement.',
-        'The template automatically fills placeholders: {{student_name}}, {{guardian_name}}, {{balance_due}}, {{due_date}}, {{school_name}}, {{school_phone}}, and {{bank_details}}.',
+        'The message draft is automatically generated for the chosen template type with the student\'s name, guardian name, balance due, and school details formatted directly.',
         'To send via WhatsApp: Click "Launch WhatsApp Web/App". The system automatically encodes the message and opens https://wa.me/<guardian_phone>?text=<encoded_message>.',
         'To send via Email: Click "Launch Email Client". The system generates a mailto: URL containing the guardian email, subject line, and formatted body.',
         'The system automatically timestamps and logs the notice in the candidate\'s permanent Communication Record.',
       ],
       tips: [
-        'Ensure the school\'s official bank account details and contact phone numbers are configured under "School & Staff Settings" so placeholders populate accurately.',
+        'Ensure the school\'s official contact phone numbers and email are configured under School Settings so message signatures populate accurately.',
       ],
     },
     {
@@ -161,7 +162,7 @@ export const HelpReferenceModal: React.FC<HelpReferenceModalProps> = ({
         'Click on any student name to open their complete Dossier containing personal notes, attachments, assessment marks, and tuition schedule.',
       ],
       tips: [
-        'Use the preset filters (e.g. "Grade 1 Intake", "Overdue Balances") to quickly narrow down large lists.',
+        'Use the filter options (e.g. "Overdue Balances" on financial views, or grade and search on admissions) to quickly narrow down large lists.',
       ],
     },
     {
@@ -176,9 +177,9 @@ export const HelpReferenceModal: React.FC<HelpReferenceModalProps> = ({
         'Click "Schedule Assessment" to book a candidate into an upcoming testing slot.',
         'Select the applicant from the dropdown, choose the date and time, and assign the evaluating teacher.',
         'Once the test is administered, click "Score Candidate" on the assessment card.',
-        'Input numerical scores for English, Mathematics, and General Knowledge / Sinhala/Tamil.',
-        'Select the overall recommendation (Pass / Conditional / Borderline / Fail) and add teacher commentary.',
-        'Clicking "Pass Candidate" will automatically transition the applicant into Accepted status in the admissions pipeline.',
+        'Enter the overall score (evaluated against the assessment\'s maximum score, typically 100).',
+        'Select a recommendation from the dropdown (Recommend Full Admission, Conditional on Academic Support, Needs Learning Support Review, Placement on Waitlist, or Under Review by Academic Council), and record evaluative commentary.',
+        'Click "Save & Complete Assessment" to mark the assessment record as Completed. (Note: transitioning the applicant\'s overall admissions stage is handled separately in the Admissions Funnel or student dossier).',
       ],
       tips: [
         'Official assessment result sheets can be printed directly from the candidate\'s Dossier.',
@@ -213,7 +214,7 @@ export const HelpReferenceModal: React.FC<HelpReferenceModalProps> = ({
       steps: [
         'Navigate to Outstanding Balances from the left sidebar.',
         'Review the KPI banner showing total receivable amount and accounts over 30/60/90 days delinquent.',
-        'Use the preset filters like "Critical 90+ Days" or "Overdue Balances, Grade 5" to identify students requiring immediate follow-up.',
+        'Use preset filters like "All Accounts", "Overdue Balances", or "Critical 90+ Days" to identify students requiring immediate follow-up.',
         'To send a notice: Click the paper airplane icon next to a student to open the Communications Drafter with pre-filled guardian contact, balance amount, and days overdue.',
         'Choose SMS, WhatsApp, or Email template, preview the generated message, and click "Send / Record Notice".',
         'To print a formal ledger summary: Click the document icon to generate a printable "Statement of Account" complete with school seal and payment history.',
@@ -263,9 +264,9 @@ export const HelpReferenceModal: React.FC<HelpReferenceModalProps> = ({
       targetActionLabel: 'Go to Staff Settings',
       steps: [
         'Look at the bottom of the left sidebar to see the currently authenticated staff profile.',
-        'Click on the staff card (or press Alt+S anywhere) to open the "Switch Active Staff Profile" dialog.',
+        'Click on the staff card at the bottom of the sidebar to open the "Switch Active Staff Profile" dialog.',
         'Select your name from the staff list.',
-        'Enter your 4-digit security PIN (Default system PIN is 9999).',
+        'Enter your 4-digit security PIN (if configured for your profile).',
         'Click "Unlock Profile". All subsequent receipts, admissions notes, and financial entries will now be signed with your credentials.',
         'When stepping away from the desk, click "Lock Terminal Session" to prevent unauthorized entries.',
         'To change your PIN: Click "Change PIN" inside the modal, enter your current PIN and choose a new 4-digit code.',
@@ -319,9 +320,11 @@ export const HelpReferenceModal: React.FC<HelpReferenceModalProps> = ({
     });
   }, [guides, selectedCategory, searchQuery]);
 
+  useLockBodyScroll(isOpen);
+
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div
         className="modal !max-w-3xl flex flex-col text-left"
@@ -540,6 +543,7 @@ export const HelpReferenceModal: React.FC<HelpReferenceModalProps> = ({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

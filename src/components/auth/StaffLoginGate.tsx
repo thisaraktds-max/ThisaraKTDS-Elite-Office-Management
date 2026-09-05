@@ -18,29 +18,24 @@ export const StaffLoginGate: React.FC = () => {
     setError('');
   };
 
-  const handleQuickPin = () => {
-    setPin('9999');
-    setError('');
-  };
-
   const handleUnlock = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedStaff) return;
-    if (!pin) {
-      setError('Please enter your 4-digit PIN (default: 9999)');
+    if (selectedStaff.has_pin && !pin) {
+      setError('Please enter your 4-digit PIN');
       return;
     }
 
     setIsAuthenticating(true);
     setError('');
 
-    const res = await authenticateStaff(selectedStaff, pin);
+    const res = await authenticateStaff(selectedStaff, selectedStaff.has_pin ? pin : '');
     setIsAuthenticating(false);
 
     if (res.success) {
       showToast(`Welcome back, ${selectedStaff.name}. Terminal unlocked.`, 'success');
     } else {
-      setError(res.error || 'Authentication failed. Please try 9999.');
+      setError(res.error || 'Authentication failed.');
     }
   };
 
@@ -77,8 +72,9 @@ export const StaffLoginGate: React.FC = () => {
                     Select Your Staff Profile
                   </h2>
                 </div>
-                <span className="text-[11px] font-mono text-muted-foreground px-2 py-0.5 bg-muted rounded-md">
-                  Default PIN: 9999
+                <span className="text-[11px] font-mono text-muted-foreground px-2 py-0.5 bg-muted rounded-md flex items-center gap-1">
+                  <Lock className="w-3 h-3" />
+                  Terminal Access
                 </span>
               </div>
 
@@ -94,19 +90,32 @@ export const StaffLoginGate: React.FC = () => {
                     className="flex items-center justify-between p-3.5 rounded-xl border border-border/80 bg-background/50 hover:bg-muted/60 hover:border-primary/40 transition-all cursor-pointer group"
                   >
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm group-hover:bg-primary group-hover:text-primary-foreground transition-colors">
-                        {staff.avatar_initials || staff.name.substring(0, 2).toUpperCase()}
+                      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary border border-primary/20 flex items-center justify-center font-bold text-sm group-hover:bg-primary group-hover:text-primary-foreground transition-colors overflow-hidden flex-shrink-0">
+                        {staff.photo_url ? (
+                          <img src={staff.photo_url} alt={staff.name} className="w-full h-full object-cover" />
+                        ) : (
+                          staff.avatar_initials || staff.name.substring(0, 2).toUpperCase()
+                        )}
                       </div>
                       <div>
                         <div className="font-semibold text-sm text-foreground flex items-center gap-2">
-                          {staff.name}
+                          <span>{staff.name}</span>
+                          {!staff.has_pin && (
+                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 font-mono font-medium">
+                              No PIN
+                            </span>
+                          )}
                         </div>
                         <div className="text-xs text-muted-foreground">{staff.role}</div>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2 text-muted-foreground group-hover:text-primary transition-colors">
-                      <KeyRound className="w-4 h-4 opacity-60" />
+                      {staff.has_pin ? (
+                        <KeyRound className="w-4 h-4 opacity-60" />
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground/60 font-mono">Open</span>
+                      )}
                       <ArrowRight className="w-4 h-4 transform group-hover:translate-x-0.5 transition-transform" />
                     </div>
                   </div>
@@ -117,8 +126,12 @@ export const StaffLoginGate: React.FC = () => {
             <form onSubmit={handleUnlock} className="space-y-5">
               <div className="flex items-center justify-between pb-3 border-b border-border">
                 <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-xs">
-                    {selectedStaff.avatar_initials || selectedStaff.name.substring(0, 2).toUpperCase()}
+                  <div className="w-11 h-11 rounded-full bg-primary text-primary-foreground flex items-center justify-center font-bold text-sm shadow-xs overflow-hidden flex-shrink-0">
+                    {selectedStaff.photo_url ? (
+                      <img src={selectedStaff.photo_url} alt={selectedStaff.name} className="w-full h-full object-cover" />
+                    ) : (
+                      selectedStaff.avatar_initials || selectedStaff.name.substring(0, 2).toUpperCase()
+                    )}
                   </div>
                   <div>
                     <div className="font-bold text-sm text-foreground">{selectedStaff.name}</div>
@@ -135,40 +148,41 @@ export const StaffLoginGate: React.FC = () => {
                 </button>
               </div>
 
-              <div>
-                <div className="flex items-center justify-between mb-2">
-                  <label className="text-[11px] font-mono uppercase tracking-wider font-semibold text-muted-foreground">
-                    Enter 4-Digit Security PIN
-                  </label>
-                  <button
-                    type="button"
-                    onClick={handleQuickPin}
-                    className="text-[11px] font-mono text-primary hover:text-primary/80 font-medium flex items-center gap-1 bg-primary/10 px-2 py-0.5 rounded transition-colors"
-                  >
-                    <Sparkles className="w-3 h-3" />
-                    <span>Fill Default (9999)</span>
-                  </button>
+              {selectedStaff.has_pin ? (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-[11px] font-mono uppercase tracking-wider font-semibold text-muted-foreground">
+                      Enter 4-Digit Security PIN
+                    </label>
+                  </div>
+
+                  <input
+                    type="password"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    maxLength={6}
+                    autoFocus
+                    required
+                    className="input !h-12 text-center text-2xl tracking-[0.4em] font-mono font-bold bg-background text-foreground"
+                    placeholder="••••"
+                    value={pin}
+                    onChange={(e) => { setPin(e.target.value); setError(''); }}
+                  />
+
+                  {error && (
+                    <p className="text-xs text-destructive mt-2 font-medium flex items-center gap-1">
+                      <span>{error}</span>
+                    </p>
+                  )}
                 </div>
-
-                <input
-                  type="password"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  maxLength={6}
-                  autoFocus
-                  required
-                  className="input !h-12 text-center text-2xl tracking-[0.4em] font-mono font-bold bg-background text-foreground"
-                  placeholder="••••"
-                  value={pin}
-                  onChange={(e) => { setPin(e.target.value); setError(''); }}
-                />
-
-                {error && (
-                  <p className="text-xs text-destructive mt-2 font-medium flex items-center gap-1">
-                    <span>{error}</span>
+              ) : (
+                <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-center space-y-1">
+                  <div className="text-xs font-semibold text-amber-700 dark:text-amber-400">No Security PIN Required</div>
+                  <p className="text-xs text-muted-foreground">
+                    This staff profile does not require a PIN code to access the terminal.
                   </p>
-                )}
-              </div>
+                </div>
+              )}
 
               <div className="flex gap-2.5 pt-1">
                 <button
@@ -180,7 +194,7 @@ export const StaffLoginGate: React.FC = () => {
                 </button>
                 <button
                   type="submit"
-                  disabled={isAuthenticating || !pin}
+                  disabled={isAuthenticating || (selectedStaff.has_pin && !pin)}
                   className="btn btn-primary flex-1 py-2.5 text-xs font-semibold shadow-xs flex items-center justify-center gap-2"
                 >
                   <Lock className="w-3.5 h-3.5" />
@@ -193,7 +207,7 @@ export const StaffLoginGate: React.FC = () => {
 
         {/* Footer Note */}
         <p className="text-center text-[11px] text-muted-foreground mt-4 font-mono">
-          Single Office Multi-Role Terminal · Default PIN is 9999 for all staff accounts
+          Single Office Multi-Role Terminal · Select profile to continue
         </p>
       </div>
     </div>

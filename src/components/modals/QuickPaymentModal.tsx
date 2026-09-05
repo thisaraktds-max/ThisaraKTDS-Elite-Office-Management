@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 import { useStaff } from '../../context/StaffContext';
 import { useNotification } from '../../context/NotificationContext';
 import { Applicant } from '../../types';
@@ -186,9 +188,11 @@ export const QuickPaymentModal: React.FC<QuickPaymentModalProps> = ({
     executePaymentSubmit();
   };
 
+  useLockBodyScroll(isOpen);
+
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal !max-w-2xl" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -266,15 +270,15 @@ export const QuickPaymentModal: React.FC<QuickPaymentModalProps> = ({
                   onOpenReceipt(completedPayment.receiptId);
                   onClose();
                 }}
-                className="btn btn-primary text-xs py-2.5 px-4 rounded-lg flex items-center gap-2 shadow-xs cursor-pointer"
+                className="btn btn-primary text-xs !h-9 px-4 rounded-lg inline-flex items-center justify-center gap-2 whitespace-nowrap leading-none shadow-xs cursor-pointer"
               >
-                <Printer className="w-4 h-4" />
-                <span>Print Official Receipt</span>
+                <Printer className="w-4 h-4 shrink-0" />
+                <span className="leading-none">Print Official Receipt</span>
               </button>
               <button
                 type="button"
                 onClick={onClose}
-                className="btn btn-ghost text-xs py-2.5 px-4 rounded-lg cursor-pointer"
+                className="btn btn-ghost text-xs !h-9 px-4 rounded-lg inline-flex items-center justify-center whitespace-nowrap leading-none cursor-pointer"
               >
                 Close Terminal
               </button>
@@ -567,6 +571,7 @@ export const QuickPaymentModal: React.FC<QuickPaymentModalProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

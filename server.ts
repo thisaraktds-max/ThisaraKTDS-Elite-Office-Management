@@ -22,6 +22,11 @@ async function startServer() {
     res.json({ status: 'ok', time: new Date().toISOString() });
   });
 
+  // Explicit JSON 404 for any unhandled /api/* routes so they never return HTML
+  app.all('/api/*', (req, res) => {
+    res.status(404).json({ error: `API route ${req.method} ${req.originalUrl} not found` });
+  });
+
   // Vite middleware in dev vs static serving in production
   if (process.env.NODE_ENV !== 'production') {
     const vite = await createViteServer({

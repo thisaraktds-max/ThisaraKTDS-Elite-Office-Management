@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import {
   X,
@@ -130,7 +131,7 @@ export const StaffOnboardingTour: React.FC<StaffOnboardingTourProps> = ({
       description:
         'Switch active staff members effortlessly during shift rotations. Every transaction, receipt, and admission note is digitally signed with bcrypt-hashed PIN codes.',
       keyFeatures: [
-        'Fast 4-digit PIN authentication (Default is 9999)',
+        'Fast 4-digit PIN security authentication',
         '460+ Student bulk CSV/Excel migration tool',
         'Instant SQLite database backups and JSON audit export',
       ],
@@ -179,7 +180,7 @@ export const StaffOnboardingTour: React.FC<StaffOnboardingTourProps> = ({
     }
   };
 
-  return (
+  return createPortal(
     <motion.div
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -309,6 +310,7 @@ export const StaffOnboardingTour: React.FC<StaffOnboardingTourProps> = ({
           </AnimatePresence>
         )}
       </div>
-    </motion.div>
+    </motion.div>,
+    document.body
   );
 };

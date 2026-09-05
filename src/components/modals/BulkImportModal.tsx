@@ -1,4 +1,6 @@
 import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 import { useStaff } from '../../context/StaffContext';
 import { useNotification } from '../../context/NotificationContext';
 import {
@@ -64,6 +66,8 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
     skippedCount: number;
     skippedRows: Array<{ row: any; reason: string }>;
   } | null>(null);
+
+  useLockBodyScroll(isOpen);
 
   if (!isOpen) return null;
 
@@ -359,7 +363,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
   const duplicateCount = rows.filter((r) => r.validationStatus === 'duplicate').length;
   const selectedCount = rows.filter((r) => r.selected).length;
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
       <div className="modal !max-w-5xl flex flex-col" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
@@ -818,6 +822,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({ isOpen, onClos
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

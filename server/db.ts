@@ -84,7 +84,9 @@ function initSchema(db: Database): void {
       phone TEXT,
       pin TEXT,
       avatar_initials TEXT,
+      photo_url TEXT DEFAULT '',
       active INTEGER DEFAULT 1,
+      is_active INTEGER DEFAULT 1,
       created_at TEXT NOT NULL
     );
 
@@ -153,6 +155,7 @@ function initSchema(db: Database): void {
       assessment_type TEXT NOT NULL,
       interviewer_name TEXT NOT NULL,
       scheduled_at TEXT NOT NULL,
+      duration_minutes INTEGER DEFAULT 30,
       score INTEGER,
       max_score INTEGER DEFAULT 100,
       recommendation TEXT,
@@ -286,17 +289,42 @@ function initSchema(db: Database): void {
   } catch (e) {
     // Column already exists or table fresh
   }
+  try {
+    db.run("ALTER TABLE assessments ADD COLUMN duration_minutes INTEGER DEFAULT 30");
+  } catch (e) {
+    // Column already exists or table fresh
+  }
+  try {
+    db.run("UPDATE assessments SET duration_minutes = 30 WHERE duration_minutes IS NULL");
+  } catch (e) {
+    // Column already updated
+  }
+  try {
+    db.run("ALTER TABLE staff ADD COLUMN is_active INTEGER DEFAULT 1");
+  } catch (e) {
+    // Column already exists or table fresh
+  }
+  try {
+    db.run("UPDATE staff SET is_active = COALESCE(active, 1) WHERE is_active IS NULL");
+  } catch (e) {
+    // Already updated
+  }
 
-  // Ensure staff PINs are hashed with bcrypt
+  try {
+    db.run("ALTER TABLE staff ADD COLUMN photo_url TEXT DEFAULT ''");
+  } catch (e) {
+    // Column already exists or table fresh
+  }
+
+  // Ensure set staff PINs are hashed with bcrypt (never default un-set pins to 9999)
   try {
     const staffRows = db.exec("SELECT id, pin FROM staff");
     if (staffRows.length > 0 && staffRows[0].values) {
       for (const row of staffRows[0].values) {
         const id = row[0] as string;
         const pin = row[1] as string;
-        if (!pin || pin === '' || pin === '9999' || !pin.startsWith('$2')) {
-          const rawPin = pin && pin.trim() ? pin.trim() : '9999';
-          const hashed = bcrypt.hashSync(rawPin, 10);
+        if (pin && pin.trim() && !pin.startsWith('$2')) {
+          const hashed = bcrypt.hashSync(pin.trim(), 10);
           db.run("UPDATE staff SET pin = ? WHERE id = ?", [hashed, id]);
         }
       }
@@ -311,8 +339,11 @@ function initSchema(db: Database): void {
   if (count === 0) {
     seedInitialData(db);
   } else {
-    // Ensure default settings include auto-lock timeout and threshold
+    // Ensure default settings include auto-lock timeout, threshold, and school_logo_url
     try {
+      db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('school_logo_url', '')");
+      db.run("DELETE FROM settings WHERE key = 'crest_icon'");
+      db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('default_opening_float', '50000.00')");
       db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('session_timeout_minutes', '10')");
       db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('stalled_applicant_threshold_days', '14')");
       db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('motto', 'To empower young minds with knowledge, skills, and values to create a future-ready generation.')");
@@ -452,6 +483,18 @@ export function seedSampleCashFlow(db: Database, forceRefresh: boolean = false):
     // Week 7 ago (49-52 days ago)
     ['inc_h_13', 'REC-2026-0822', getRelativeDateStr(50), 55000.00, 'Tuition', 'Bank Transfer', 'Tariq Al-Mansoor', 'app_3', 'fam_2', 'stf_2', 'Marcus Sterling', 'BFT-ALM-2201', 'Tuition fee installment', nowIso],
     ['inc_h_14', 'REC-2026-0823', getRelativeDateStr(52), 10000.00, 'Registration', 'Card', 'Harrison Thornton', 'app_5', 'fam_4', 'stf_3', 'Sophia Chen', 'POS-CARD-1980', 'Placement evaluation and assessment fee', nowIso],
+
+    // Month 3 ago (~75-80 days ago - June)
+    ['inc_h_15', 'REC-2026-0610', getRelativeDateStr(78), 185000.00, 'Tuition', 'Bank Transfer', 'Julian Montgomery', 'app_1', 'fam_1', 'stf_2', 'Marcus Sterling', 'BFT-MONT-1102', 'Annual Term 3 tuition settlement', nowIso],
+    ['inc_h_16', 'REC-2026-0618', getRelativeDateStr(85), 65000.00, 'Registration', 'Bank Transfer', 'Stefan Kowalski', 'app_4', 'fam_3', 'stf_2', 'Marcus Sterling', 'BFT-KOW-1190', 'Early registration deposit', nowIso],
+
+    // Month 4 ago (~105-115 days ago - May)
+    ['inc_h_17', 'REC-2026-0512', getRelativeDateStr(110), 160000.00, 'Tuition', 'Bank Transfer', 'Tariq Al-Mansoor', 'app_3', 'fam_2', 'stf_2', 'Marcus Sterling', 'BFT-ALM-0891', 'Term 2 tuition fee payment', nowIso],
+    ['inc_h_18', 'REC-2026-0520', getRelativeDateStr(118), 35000.00, 'Exam Fee', 'Card', 'Harrison Thornton', 'app_5', 'fam_4', 'stf_1', 'Malki Perera', 'POS-CARD-1120', 'Standardized assessment fees', nowIso],
+
+    // Month 5 ago (~135-145 days ago - April)
+    ['inc_h_19', 'REC-2026-0414', getRelativeDateStr(140), 145000.00, 'Tuition', 'Bank Transfer', 'Julian Montgomery', 'app_1', 'fam_1', 'stf_2', 'Marcus Sterling', 'BFT-MONT-0544', 'Mid-year academic installment', nowIso],
+    ['inc_h_20', 'REC-2026-0422', getRelativeDateStr(148), 28000.00, 'Extracurricular / Sports', 'Cash', 'Stefan Kowalski', 'app_4', 'fam_3', 'stf_1', 'Malki Perera', 'CASH-REC-041', 'Annual swimming and athletics kit subscription', nowIso],
   ];
 
   for (const inc of historicalIncome) {
@@ -484,6 +527,18 @@ export function seedSampleCashFlow(db: Database, forceRefresh: boolean = false):
 
     // Week 7 ago
     ['exp_h_9', getRelativeDateStr(50), 21000.00, 'Supplies', 'Matara Cleaners & Facilities', 'Cash', 'CASH-CLN-14', 'Malki Perera', 'Sanitization dispensers, handwash supplies & facility cleaning materials', nowIso],
+
+    // Month 3 ago (June)
+    ['exp_h_10', getRelativeDateStr(78), 58000.00, 'Maintenance', 'Apex Air Conditioning & Refrigeration', 'Bank Transfer', 'VCH-HVAC-2026-08', 'Marcus Sterling', 'Campus-wide HVAC servicing and filter replacements', nowIso],
+    ['exp_h_11', getRelativeDateStr(85), 32000.00, 'Educational Materials', 'Colombo Book Agency', 'Bank Transfer', 'VCH-EDU-2026-44', 'Eleanor Vance', 'Cambridge primary reading sets and library reference books', nowIso],
+
+    // Month 4 ago (May)
+    ['exp_h_12', getRelativeDateStr(110), 45000.00, 'Utilities', 'Ceylon Electricity Board', 'Bank Transfer', 'ELEC-MAY-BILL', 'Marcus Sterling', 'May monthly administrative and classroom electric power invoice', nowIso],
+    ['exp_h_13', getRelativeDateStr(118), 24500.00, 'Supplies', 'Southern Office Supplies', 'Cash', 'CASH-SUPP-19', 'Malki Perera', 'Admissions application folios, toner cartridges & badge stationery', nowIso],
+
+    // Month 5 ago (April)
+    ['exp_h_14', getRelativeDateStr(140), 38000.00, 'Maintenance', 'GreenScape Grounds & Gardeners', 'Bank Transfer', 'VCH-GRND-2026-02', 'Marcus Sterling', 'Campus sports grounds maintenance and landscaping', nowIso],
+    ['exp_h_15', getRelativeDateStr(148), 18500.00, 'Educational Materials', 'Matara Science Consumables', 'Cash', 'CASH-SCI-08', 'Sophia Chen', 'Introductory laboratory test kits and experiment charts', nowIso],
   ];
 
   for (const exp of historicalExpenses) {
@@ -514,11 +569,12 @@ export function seedInitialData(db: Database): void {
     ['total_student_capacity', '450'],
     ['sibling_discount_2nd', '10'],
     ['sibling_discount_3rd', '15'],
+    ['default_opening_float', '50000.00'],
     ['session_timeout_minutes', '10'],
     ['stalled_applicant_threshold_days', '14'],
     ['receipt_footer_notice', 'Thank you for your payment. Please retain this receipt for your records. Elite International School, 1/143, Akuressa Road, Matara, Sri Lanka • +94 70 699 9333 • office@eis.lk'],
     ['backup_folder_path', ''],
-    ['crest_icon', 'shield']
+    ['school_logo_url', '']
   ];
 
   for (const [k, v] of settings) {
@@ -655,11 +711,11 @@ export function seedInitialData(db: Database): void {
   }
 
   // Assessments
-  db.run(`INSERT INTO assessments (id, applicant_id, applicant_name, grade, assessment_type, interviewer_name, scheduled_at, score, max_score, recommendation, status, notes, created_at) VALUES 
-    ('asm_1', 'app_1', 'Alexander Montgomery', 'Grade 9', 'Entrance Exam', 'Sophia Chen', '2026-08-10 10:00', 94, 100, 'Recommend Full Admission', 'Completed', 'Outstanding analytical and writing aptitude.', '${now}'),
-    ('asm_2', 'app_2', 'Beatrice Montgomery', 'Grade 6', 'Parent Interview', 'Dr. Arthur Pendelton', '2026-08-12 14:30', 90, 100, 'Recommend Full Admission', 'Completed', 'Strong familial alignment with school ethos and arts program.', '${now}'),
-    ('asm_3', 'app_3', 'Zayd Al-Mansoor', 'Grade 10', 'Diagnostic Assessment', 'Sophia Chen', '2026-09-02 09:30', NULL, 100, NULL, 'Scheduled', 'Diagnostic for ESL and Advanced Mathematics placement.', '${now}'),
-    ('asm_4', 'app_4', 'Karolina Kowalski', 'Grade 7', 'Entrance Exam', 'Sophia Chen', '2026-09-05 11:00', NULL, 100, NULL, 'Scheduled', 'Standard Middle School Entrance Assessment in Main Hall.', '${now}')
+  db.run(`INSERT INTO assessments (id, applicant_id, applicant_name, grade, assessment_type, interviewer_name, scheduled_at, duration_minutes, score, max_score, recommendation, status, notes, created_at) VALUES 
+    ('asm_1', 'app_1', 'Alexander Montgomery', 'Grade 9', 'Entrance Exam', 'Sophia Chen', '2026-08-10T10:00:00.000Z', 45, 94, 100, 'Recommend Full Admission', 'Completed', 'Outstanding analytical and writing aptitude.', '${now}'),
+    ('asm_2', 'app_2', 'Beatrice Montgomery', 'Grade 6', 'Parent Interview', 'Dr. Arthur Pendelton', '2026-08-12T14:30:00.000Z', 30, 90, 100, 'Recommend Full Admission', 'Completed', 'Strong familial alignment with school ethos and arts program.', '${now}'),
+    ('asm_3', 'app_3', 'Zayd Al-Mansoor', 'Grade 10', 'Diagnostic Assessment', 'Sophia Chen', '2026-09-02T09:30:00.000Z', 60, NULL, 100, NULL, 'Scheduled', 'Diagnostic for ESL and Advanced Mathematics placement.', '${now}'),
+    ('asm_4', 'app_4', 'Karolina Kowalski', 'Grade 7', 'Entrance Exam', 'Sophia Chen', '2026-09-05T11:00:00.000Z', 45, NULL, 100, NULL, 'Scheduled', 'Standard Middle School Entrance Assessment in Main Hall.', '${now}')
   `);
 
   // Scholarships

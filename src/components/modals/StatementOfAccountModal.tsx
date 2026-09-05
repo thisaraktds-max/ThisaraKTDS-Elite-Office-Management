@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 import { X, Printer, Download, FileText } from 'lucide-react';
 import { Applicant } from '../../types';
 
@@ -33,6 +35,8 @@ export const StatementOfAccountModal: React.FC<StatementOfAccountModalProps> = (
     }
   }, [isOpen, applicantId]);
 
+  useLockBodyScroll(isOpen && !!applicantId);
+
   if (!isOpen) return null;
 
   const handlePrint = () => {
@@ -43,8 +47,14 @@ export const StatementOfAccountModal: React.FC<StatementOfAccountModalProps> = (
   const fin = dossier?.financials;
   const currency = settings.currency_symbol ? `${settings.currency_symbol} ` : 'LKR ';
 
-  return (
+  return createPortal(
     <div className="modal-backdrop" onClick={onClose}>
+      <style>{`
+        @page {
+          size: A4 portrait;
+          margin: 12mm 15mm;
+        }
+      `}</style>
       <div className="modal !max-w-4xl !p-6" onClick={e => e.stopPropagation()}>
         {/* Top actions bar */}
         <div className="flex items-center justify-between mb-6 pb-3 border-b border-border receipt-actions">
@@ -53,12 +63,22 @@ export const StatementOfAccountModal: React.FC<StatementOfAccountModalProps> = (
             <span className="font-semibold text-sm">Official Statement of Account</span>
           </div>
           <div className="flex items-center gap-2">
-            <button onClick={handlePrint} className="btn btn-primary flex items-center gap-2 text-xs">
-              <Printer className="w-4 h-4" />
-              Print / Save PDF
+            <button
+              type="button"
+              onClick={handlePrint}
+              className="btn btn-primary !h-8 !px-3.5 inline-flex items-center justify-center gap-1.5 text-xs font-semibold whitespace-nowrap leading-none rounded-lg shadow-xs"
+            >
+              <Printer className="w-3.5 h-3.5 shrink-0" />
+              <span className="inline-block leading-none">Print / Save PDF</span>
             </button>
-            <button onClick={onClose} className="btn-ghost p-1.5 rounded-lg text-muted-foreground">
-              <X className="w-5 h-5" />
+            <button
+              type="button"
+              onClick={onClose}
+              className="btn-ghost !h-8 !w-8 inline-flex items-center justify-center rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
+              title="Close"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4 shrink-0" />
             </button>
           </div>
         </div>
@@ -70,23 +90,25 @@ export const StatementOfAccountModal: React.FC<StatementOfAccountModalProps> = (
             {/* Header with crest */}
             <div className="flex items-start justify-between border-b-2 border-primary/20 pb-6 mb-6">
               <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-xl border border-border/80 p-1 bg-muted/40 flex items-center justify-center flex-shrink-0 shadow-2xs">
-                  <img
-                    src="/school-logo.png"
-                    alt="School Logo"
-                    className="w-full h-full object-contain"
-                    referrerPolicy="no-referrer"
-                  />
-                </div>
+                {settings.school_logo_url ? (
+                  <div className="w-14 h-14 rounded-xl border border-border/80 p-1 bg-muted/40 flex items-center justify-center flex-shrink-0 shadow-2xs">
+                    <img
+                      src={settings.school_logo_url}
+                      alt={settings.school_name || 'School Logo'}
+                      className="w-full h-full object-contain"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                ) : null}
                 <div>
                   <h1 className="text-2xl font-serif font-bold tracking-tight text-primary">
                     {settings.school_name || 'Elite International School'}
                   </h1>
                   <p className="text-xs uppercase tracking-widest text-muted-foreground font-mono">
-                    Office of the Bursar & Academic Accounts • Matara
+                    Office of the Bursar & Academic Accounts
                   </p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {settings.address || '1/143, Akuressa Road, Matara, Sri Lanka'} • {settings.email || 'office@eis.lk'} • Tel: {settings.phone || '+94 70 699 9333'}
+                    {settings.address || '[School Address Not Set]'} • {settings.email || '[Email Not Set]'} • Tel: {settings.phone || '[Phone Not Set]'}
                   </p>
                 </div>
               </div>
@@ -269,6 +291,7 @@ export const StatementOfAccountModal: React.FC<StatementOfAccountModalProps> = (
           </div>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };

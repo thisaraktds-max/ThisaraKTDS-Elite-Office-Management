@@ -84,86 +84,6 @@ function logAudit(db: any, staffName: string, actionType: string, recordType: st
 // ----------------------------------------------------
 // SHARED FINANCIAL & BALANCE CALCULATION UTILITIES
 // ----------------------------------------------------
-export function computeStudentAging(
-  balanceDue: number,
-  installments: Array<{ amount_due: number; amount_paid: number; due_date: string; status?: string }>,
-  lastPayment: string | null,
-  applicantDate?: string | null,
-  today: Date = new Date()
-) {
-  let agingBucket: 'current' | '30_days' | '60_days' | '90_plus' = 'current';
-  let isOverdue = false;
-  let daysOverdue = 0;
-  const todayStr = today.toISOString().substring(0, 10);
-
-  if (balanceDue <= 0) {
-    return { agingBucket: 'current' as const, isOverdue: false, daysOverdue: 0 };
-  }
-
-  if (installments && installments.length > 0) {
-    // Active installment plan exists: base overdue on whether any installment is actually past its due_date and unpaid
-    const overdueInsts = installments.filter(inst => {
-      const isUnpaid = Number(inst.amount_paid || 0) < Number(inst.amount_due || 0);
-      const isPastDue = (inst.due_date && inst.due_date < todayStr) || inst.status === 'Overdue';
-      return isUnpaid && isPastDue;
-    });
-
-    if (overdueInsts.length > 0) {
-      isOverdue = true;
-      const pastDueTimes = overdueInsts
-        .map(i => new Date(i.due_date).getTime())
-        .filter(t => !isNaN(t));
-      const oldestDueTime = pastDueTimes.length > 0 ? Math.min(...pastDueTimes) : today.getTime();
-      daysOverdue = Math.max(0, Math.floor((today.getTime() - oldestDueTime) / (1000 * 60 * 60 * 24)));
-
-      if (daysOverdue > 90) agingBucket = '90_plus';
-      else if (daysOverdue > 60) agingBucket = '60_days';
-      else if (daysOverdue > 30) agingBucket = '30_days';
-      else agingBucket = 'current';
-    } else {
-      // Installments exist and none are past due yet!
-      isOverdue = false;
-      agingBucket = 'current';
-      daysOverdue = 0;
-    }
-  } else {
-    // No installment plan configured: fall back to days-since-last-payment heuristic
-    if (lastPayment) {
-      const daysSinceLast = Math.floor((today.getTime() - new Date(lastPayment).getTime()) / (1000 * 60 * 60 * 24));
-      daysOverdue = daysSinceLast;
-      if (daysSinceLast > 90) agingBucket = '90_plus';
-      else if (daysSinceLast > 60) agingBucket = '60_days';
-      else if (daysSinceLast > 30) agingBucket = '30_days';
-      else agingBucket = 'current';
-      isOverdue = daysSinceLast > 30;
-    } else {
-      // Student has no payment history AND no installment plan.
-      // Use enrollment or application creation date
-      if (applicantDate) {
-        const daysSinceEnrollment = Math.max(0, Math.floor((today.getTime() - new Date(applicantDate).getTime()) / (1000 * 60 * 60 * 24)));
-        if (daysSinceEnrollment > 30) {
-          daysOverdue = daysSinceEnrollment;
-          if (daysSinceEnrollment > 90) agingBucket = '90_plus';
-          else if (daysSinceEnrollment > 60) agingBucket = '60_days';
-          else agingBucket = '30_days';
-          isOverdue = true;
-        } else {
-          // Freshly enrolled (<= 30 days) with no payment history: Current!
-          agingBucket = 'current';
-          isOverdue = false;
-          daysOverdue = 0;
-        }
-      } else {
-        agingBucket = 'current';
-        isOverdue = false;
-        daysOverdue = 0;
-      }
-    }
-  }
-
-  return { agingBucket, isOverdue, daysOverdue };
-}
-
 export function calculateStudentBalance(db: any, applicantId: string) {
   const applicant = queryOne(db, "SELECT * FROM applicants WHERE id = ?", [applicantId]);
   if (!applicant) return null;
@@ -171,7 +91,6 @@ export function calculateStudentBalance(db: any, applicantId: string) {
   const feeItems = queryAll(db, "SELECT * FROM fee_structures WHERE grade = ? AND academic_year = ?", [applicant.grade_applying, applicant.academic_year]);
   const scholarships = queryAll(db, "SELECT * FROM scholarships WHERE applicant_id = ?", [applicantId]);
   const incomePayments = queryAll(db, "SELECT * FROM income WHERE applicant_id = ? ORDER BY date DESC, created_at DESC", [applicantId]);
-  const installments = queryAll(db, "SELECT * FROM installment_plans WHERE applicant_id = ? ORDER BY due_date ASC, installment_number ASC", [applicantId]);
 
   let baseTuition = 0;
   let otherFees = 0;
@@ -198,15 +117,14 @@ export function calculateStudentBalance(db: any, applicantId: string) {
 
   const lastPayment = incomePayments.length > 0 ? incomePayments[0].date : null;
   const today = new Date();
-  const daysSinceLast = lastPayment ? Math.floor((today.getTime() - new Date(lastPayment).getTime()) / (1000 * 60 * 60 * 24)) : null;
+  const daysSinceLast = lastPayment ? Math.floor((today.getTime() - new Date(lastPayment).getTime()) / (1000 * 60 * 60 * 24)) : 999;
 
-  const { agingBucket, isOverdue, daysOverdue } = computeStudentAging(
-    balanceDue,
-    installments,
-    lastPayment,
-    applicant.status_updated_at || applicant.created_at,
-    today
-  );
+  let agingBucket: 'current' | '30_days' | '60_days' | '90_plus' = 'current';
+  if (balanceDue > 0) {
+    if (daysSinceLast > 90) agingBucket = '90_plus';
+    else if (daysSinceLast > 60) agingBucket = '60_days';
+    else if (daysSinceLast > 30) agingBucket = '30_days';
+  }
 
   return {
     applicant,
@@ -227,10 +145,9 @@ export function calculateStudentBalance(db: any, applicantId: string) {
     scholarships,
     payments: incomePayments,
     lastPaymentDate: lastPayment,
-    daysSinceLastPayment: daysSinceLast,
-    days_overdue: daysOverdue,
+    daysSinceLastPayment: lastPayment ? daysSinceLast : null,
     agingBucket,
-    isOverdue
+    isOverdue: balanceDue > 0 && daysSinceLast > 30
   };
 }
 
@@ -249,7 +166,6 @@ export function calculateAllStudentBalances(db: any, statuses: string[] = ['enro
   const allFees = queryAll(db, "SELECT grade, academic_year, fee_type, amount FROM fee_structures");
   const allScholarships = queryAll(db, "SELECT applicant_id, discount_type, value FROM scholarships");
   const allIncome = queryAll(db, "SELECT applicant_id, amount, date FROM income WHERE applicant_id IS NOT NULL ORDER BY date DESC, created_at DESC");
-  const allInstallments = queryAll(db, "SELECT applicant_id, amount_due, amount_paid, due_date, status FROM installment_plans");
 
   const today = new Date();
 
@@ -277,16 +193,14 @@ export function calculateAllStudentBalances(db: any, statuses: string[] = ['enro
     const percentPaid = expected > 0 ? Math.min(100, Math.round((paid / expected) * 100)) : 100;
 
     const lastPayment = payments.length > 0 ? payments[0].date : null;
-    const daysSinceLast = lastPayment ? Math.floor((today.getTime() - new Date(lastPayment).getTime()) / (1000 * 60 * 60 * 24)) : null;
+    const daysSinceLast = lastPayment ? Math.floor((today.getTime() - new Date(lastPayment).getTime()) / (1000 * 60 * 60 * 24)) : 999;
 
-    const studentInstallments = allInstallments.filter(i => i.applicant_id === app.id);
-    const { agingBucket, isOverdue, daysOverdue } = computeStudentAging(
-      balance,
-      studentInstallments,
-      lastPayment,
-      app.status_updated_at || app.created_at,
-      today
-    );
+    let agingBucket: 'current' | '30_days' | '60_days' | '90_plus' = 'current';
+    if (balance > 0) {
+      if (daysSinceLast > 90) agingBucket = '90_plus';
+      else if (daysSinceLast > 60) agingBucket = '60_days';
+      else if (daysSinceLast > 30) agingBucket = '30_days';
+    }
 
     return {
       ...app,
@@ -301,10 +215,10 @@ export function calculateAllStudentBalances(db: any, statuses: string[] = ['enro
       paidTotal: paid,
       percentPaid,
       lastPaymentDate: lastPayment,
-      daysSinceLastPayment: daysSinceLast,
-      days_overdue: daysOverdue,
+      daysSinceLastPayment: lastPayment ? daysSinceLast : null,
+      days_overdue: daysSinceLast,
       agingBucket,
-      isOverdue
+      isOverdue: balance > 0 && daysSinceLast > 30
     };
   });
 }
@@ -316,7 +230,6 @@ export function syncApplicantInstallmentPlans(db: any, applicantId: string) {
 
   const incomeRows = queryAll(db, "SELECT amount FROM income WHERE applicant_id = ?", [applicantId]);
   let remainingPayment = incomeRows.reduce((sum, r) => sum + Number(r.amount || 0), 0);
-  const todayStr = new Date().toISOString().substring(0, 10);
 
   for (const p of plans) {
     const due = Number(p.amount_due || 0);
@@ -326,8 +239,6 @@ export function syncApplicantInstallmentPlans(db: any, applicantId: string) {
     let status = 'Pending';
     if (allocated >= due && due > 0) {
       status = 'Paid';
-    } else if (p.due_date && p.due_date < todayStr) {
-      status = 'Overdue';
     } else if (allocated > 0) {
       status = 'Partial';
     } else {
@@ -524,13 +435,7 @@ apiRouter.post('/settings/seed-sample-data', async (req, res) => {
 apiRouter.get('/staff', async (req, res) => {
   try {
     const db = await getDb();
-    const activeOnly = req.query.active_only === 'true';
-    let sql = "SELECT id, name, role, email, phone, avatar_initials, photo_url, active, is_active, (pin IS NOT NULL AND pin != '') as has_pin, created_at FROM staff";
-    if (activeOnly) {
-      sql += " WHERE (is_active = 1 OR is_active IS NULL) AND (active = 1 OR active IS NULL)";
-    }
-    sql += " ORDER BY name ASC";
-    const staff = queryAll(db, sql);
+    const staff = queryAll(db, "SELECT id, name, role, email, phone, avatar_initials, active, (pin IS NOT NULL AND pin != '') as has_pin, created_at FROM staff ORDER BY name ASC");
     res.json(staff);
   } catch (err: any) {
     if (err instanceof ValidationError || err?.name === 'ValidationError') {
@@ -545,38 +450,21 @@ apiRouter.get('/staff', async (req, res) => {
 apiRouter.post('/staff', async (req, res) => {
   try {
     const db = await getDb();
-    const { name, role, email, phone, pin, photo_url } = req.body;
+    const { name, role, email, phone, pin } = req.body;
     const loggedInStaff = req.headers['x-staff-name'] as string || 'Admin';
-    if (!name || !name.trim()) {
-      return res.status(400).json({ error: 'Staff name is required' });
-    }
     const id = `stf_${Date.now()}`;
-    const initials = name.trim().split(' ').filter(Boolean).map((n: string) => n[0]).join('').toUpperCase().substring(0, 2) || 'ST';
+    const initials = name.split(' ').map((n: string) => n[0]).join('').toUpperCase().substring(0, 2);
     const now = new Date().toISOString();
 
-    let hashedPin: string | null = null;
-    if (pin && typeof pin === 'string' && pin.trim()) {
-      hashedPin = bcrypt.hashSync(pin.trim(), 10);
-    }
-
+    const rawPin = pin && pin.trim() ? pin.trim() : '9999';
+    const hashedPin = bcrypt.hashSync(rawPin, 10);
     db.run(
-      "INSERT INTO staff (id, name, role, email, phone, pin, avatar_initials, photo_url, active, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?)",
-      [id, name.trim(), role || 'Admissions Officer', email || '', phone || '', hashedPin, initials, photo_url || '', now]
+      "INSERT INTO staff (id, name, role, email, phone, pin, avatar_initials, active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)",
+      [id, name, role, email || '', phone || '', hashedPin, initials, now]
     );
     saveDb();
-    logAudit(db, loggedInStaff, 'create', 'staff', id, `Added staff profile: ${name.trim()} (${role || 'Admissions Officer'})`);
-    res.json({
-      id,
-      name: name.trim(),
-      role: role || 'Admissions Officer',
-      email,
-      phone,
-      avatar_initials: initials,
-      photo_url: photo_url || '',
-      has_pin: !!hashedPin,
-      active: 1,
-      is_active: 1
-    });
+    logAudit(db, loggedInStaff, 'create', 'staff', id, `Added staff profile: ${name} (${role})`);
+    res.json({ id, name, role, email, phone, avatar_initials: initials, has_pin: true, active: 1 });
   } catch (err: any) {
     if (err instanceof ValidationError || err?.name === 'ValidationError') {
       return res.status(400).json({ error: err.message });
@@ -590,30 +478,16 @@ apiRouter.post('/staff', async (req, res) => {
 apiRouter.put('/staff/:id', async (req, res) => {
   try {
     const db = await getDb();
-    const { name, role, email, phone, photo_url } = req.body;
+    const { name, role, email, phone, active } = req.body;
     const loggedInStaff = req.headers['x-staff-name'] as string || 'Admin';
     
-    if (!name || !name.trim()) {
-      return res.status(400).json({ error: 'Staff name is required' });
-    }
-    if (!role || !role.trim()) {
-      return res.status(400).json({ error: 'Staff role is required' });
-    }
-
-    const existing = queryOne(db, "SELECT * FROM staff WHERE id = ?", [req.params.id]);
-    if (!existing) {
-      return res.status(404).json({ error: 'Staff member not found' });
-    }
-
-    const initials = name.trim().split(' ').filter(Boolean).map((n: string) => n[0]).join('').toUpperCase().substring(0, 2) || existing.avatar_initials || 'ST';
-
     db.run(
-      "UPDATE staff SET name = ?, role = ?, email = COALESCE(?, email), phone = COALESCE(?, phone), avatar_initials = ?, photo_url = COALESCE(?, photo_url) WHERE id = ?",
-      [name.trim(), role.trim(), email !== undefined ? email : existing.email, phone !== undefined ? phone : existing.phone, initials, photo_url !== undefined ? photo_url : existing.photo_url, req.params.id]
+      "UPDATE staff SET name = COALESCE(?, name), role = COALESCE(?, role), email = COALESCE(?, email), phone = COALESCE(?, phone), active = COALESCE(?, active) WHERE id = ?",
+      [name, role, email, phone, active !== undefined ? (active ? 1 : 0) : null, req.params.id]
     );
     saveDb();
-    logAudit(db, loggedInStaff, 'update', 'staff', req.params.id, `Updated staff profile: ${name.trim()} (${role.trim()})`);
-    res.json({ success: true, message: 'Staff profile updated successfully' });
+    logAudit(db, loggedInStaff, 'update', 'staff', req.params.id, `Updated staff profile: ${name || req.params.id}`);
+    res.json({ success: true, message: 'Staff profile updated' });
   } catch (err: any) {
     if (err instanceof ValidationError || err?.name === 'ValidationError') {
       return res.status(400).json({ error: err.message });
@@ -624,99 +498,19 @@ apiRouter.put('/staff/:id', async (req, res) => {
   }
 });
 
-// Update staff photo
-apiRouter.put('/staff/:id/photo', async (req, res) => {
+apiRouter.put('/staff/:id/pin', async (req, res) => {
   try {
     const db = await getDb();
+    const { new_pin, current_pin } = req.body;
     const loggedInStaff = req.headers['x-staff-name'] as string || 'Admin';
-    const { photo_url } = req.body;
-    const existing = queryOne(db, "SELECT name FROM staff WHERE id = ?", [req.params.id]);
-    if (!existing) {
-      return res.status(404).json({ error: 'Staff member not found' });
-    }
 
-    db.run("UPDATE staff SET photo_url = ? WHERE id = ?", [photo_url || '', req.params.id]);
-    saveDb();
-    logAudit(db, loggedInStaff, 'update_photo', 'staff', req.params.id, `Updated photo for staff member: ${existing.name}`);
-    res.json({ success: true, photo_url: photo_url || '' });
-  } catch (err: any) {
-    if (err instanceof ValidationError || err?.name === 'ValidationError') {
-      return res.status(400).json({ error: err.message });
+    if (!new_pin || new_pin.trim().length < 4) {
+      return res.status(400).json({ error: 'PIN must be at least 4 digits' });
     }
-    console.error(`[PUT /staff/:id/photo] error:`, err);
-    logErrorToFile('PUT /staff/:id/photo', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-apiRouter.patch('/staff/:id/deactivate', async (req, res) => {
-  try {
-    const db = await getDb();
-    const loggedInStaff = req.headers['x-staff-name'] as string || 'Admin';
-    const staff = queryOne(db, "SELECT id, name FROM staff WHERE id = ?", [req.params.id]);
-    if (!staff) {
-      return res.status(404).json({ error: 'Staff member not found' });
-    }
-
-    db.run("UPDATE staff SET is_active = 0, active = 0 WHERE id = ?", [req.params.id]);
-    saveDb();
-    logAudit(db, loggedInStaff, 'deactivate', 'staff', req.params.id, `Deactivated staff member: ${staff.name}`);
-    res.json({ success: true, message: `Staff member ${staff.name} deactivated successfully` });
-  } catch (err: any) {
-    if (err instanceof ValidationError || err?.name === 'ValidationError') {
-      return res.status(400).json({ error: err.message });
-    }
-    console.error(`[PATCH /staff/:id/deactivate] error:`, err);
-    logErrorToFile('PATCH /staff/:id/deactivate', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-apiRouter.patch('/staff/:id/reactivate', async (req, res) => {
-  try {
-    const db = await getDb();
-    const loggedInStaff = req.headers['x-staff-name'] as string || 'Admin';
-    const staff = queryOne(db, "SELECT id, name FROM staff WHERE id = ?", [req.params.id]);
-    if (!staff) {
-      return res.status(404).json({ error: 'Staff member not found' });
-    }
-
-    db.run("UPDATE staff SET is_active = 1, active = 1 WHERE id = ?", [req.params.id]);
-    saveDb();
-    logAudit(db, loggedInStaff, 'reactivate', 'staff', req.params.id, `Reactivated staff member: ${staff.name}`);
-    res.json({ success: true, message: `Staff member ${staff.name} reactivated successfully` });
-  } catch (err: any) {
-    if (err instanceof ValidationError || err?.name === 'ValidationError') {
-      return res.status(400).json({ error: err.message });
-    }
-    console.error(`[PATCH /staff/:id/reactivate] error:`, err);
-    logErrorToFile('PATCH /staff/:id/reactivate', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-const handleStaffPinUpdate = async (req: any, res: any) => {
-  try {
-    const db = await getDb();
-    const { current_pin } = req.body;
-    const new_pin = req.body.new_pin !== undefined ? req.body.new_pin : req.body.pin;
-    const loggedInStaff = req.headers['x-staff-name'] as string || 'Admin';
 
     const staff = queryOne(db, "SELECT pin, name FROM staff WHERE id = ?", [req.params.id]);
     if (!staff) {
       return res.status(404).json({ error: 'Staff member not found' });
-    }
-
-    // If new_pin is empty or null, remove the PIN requirement
-    if (new_pin === null || new_pin === undefined || (typeof new_pin === 'string' && new_pin.trim() === '')) {
-      db.run("UPDATE staff SET pin = NULL WHERE id = ?", [req.params.id]);
-      saveDb();
-      logAudit(db, loggedInStaff, 'remove_pin', 'staff', req.params.id, `Removed security PIN for staff: ${staff.name}`);
-      return res.json({ success: true, message: 'Security PIN removed successfully' });
-    }
-
-    if (typeof new_pin !== 'string' || new_pin.trim().length < 4) {
-      return res.status(400).json({ error: 'PIN must be at least 4 digits' });
     }
 
     // Verify current PIN if provided and if staff has a pin set
@@ -745,38 +539,30 @@ const handleStaffPinUpdate = async (req: any, res: any) => {
     logErrorToFile('PUT /staff/:id/pin', err);
     res.status(500).json({ error: err.message });
   }
-};
-
-apiRouter.put('/staff/:id/pin', handleStaffPinUpdate);
-apiRouter.patch('/staff/:id/pin', handleStaffPinUpdate);
+});
 
 apiRouter.post('/staff/verify-pin', async (req, res) => {
   try {
     const db = await getDb();
     const { staff_id, pin } = req.body;
-    const staff = queryOne(db, "SELECT pin, is_active, active FROM staff WHERE id = ?", [staff_id]);
+    const staff = queryOne(db, "SELECT pin FROM staff WHERE id = ?", [staff_id]);
     if (!staff) {
       return res.status(404).json({ error: 'Staff member not found' });
-    }
-    if ((staff.is_active !== undefined && staff.is_active === 0) || (staff.active !== undefined && staff.active === 0)) {
-      return res.status(403).json({ valid: false, error: 'Staff profile is deactivated. Please contact an administrator.' });
     }
     if (!staff.pin || staff.pin.trim() === '') {
       return res.json({ valid: true });
     }
     
     let valid = false;
-    if (pin && typeof pin === 'string') {
-      if (staff.pin.startsWith('$2')) {
-        valid = bcrypt.compareSync(pin, staff.pin);
-      } else {
-        // Plaintext fallback and auto-upgrade to bcrypt
-        valid = staff.pin === pin;
-        if (valid) {
-          const hashed = bcrypt.hashSync(pin, 10);
-          db.run("UPDATE staff SET pin = ? WHERE id = ?", [hashed, staff_id]);
-          saveDb();
-        }
+    if (staff.pin.startsWith('$2')) {
+      valid = bcrypt.compareSync(pin, staff.pin);
+    } else {
+      // Plaintext fallback and auto-upgrade to bcrypt
+      valid = staff.pin === pin;
+      if (valid) {
+        const hashed = bcrypt.hashSync(pin, 10);
+        db.run("UPDATE staff SET pin = ? WHERE id = ?", [hashed, staff_id]);
+        saveDb();
       }
     }
     res.json({ valid });
@@ -1511,16 +1297,7 @@ const handleGenerateInstallmentLogic = async (req: any, res: any) => {
       total_amount = validatePositiveAmount(total_amount, 'total_amount');
     } else {
       const balanceInfo = calculateStudentBalance(db, id);
-      const computedAmount = balanceInfo && balanceInfo.balanceDue > 0
-        ? balanceInfo.balanceDue
-        : (balanceInfo?.expectedNet || 0);
-
-      if (!computedAmount || computedAmount <= 0) {
-        return res.status(400).json({
-          error: `No fee structure was found for grade "${balanceInfo?.applicant?.grade_applying || 'unknown'}" and academic year "${balanceInfo?.applicant?.academic_year || 'unknown'}". An explicit total_amount must be provided.`
-        });
-      }
-      total_amount = computedAmount;
+      total_amount = balanceInfo?.balanceDue > 0 ? balanceInfo.balanceDue : (balanceInfo?.expectedNet || 350000);
     }
 
     const now = new Date().toISOString();
@@ -1806,12 +1583,8 @@ apiRouter.delete('/assessments/:id', async (req, res) => {
   try {
     const db = await getDb();
     const { id } = req.params;
-    const staffName = req.headers['x-staff-name'] as string || 'Admissions Officer';
-    const existing = queryOne(db, "SELECT applicant_name, assessment_type FROM assessments WHERE id = ?", [id]);
-
     db.run("DELETE FROM assessments WHERE id = ?", [id]);
     saveDb();
-    logAudit(db, staffName, 'delete', 'assessment', id, `Cancelled/deleted assessment for ${existing?.applicant_name || id} (${existing?.assessment_type || 'test'})`);
     res.json({ success: true });
   } catch (err: any) {
     if (err instanceof ValidationError || err?.name === 'ValidationError') {
@@ -1911,25 +1684,9 @@ apiRouter.delete('/families/:id', async (req, res) => {
   try {
     const db = await getDb();
     const { id } = req.params;
-    const staffName = req.headers['x-staff-name'] as string || 'Registrar';
-
-    const family = queryOne(db, "SELECT * FROM families WHERE id = ?", [id]);
-    if (!family) {
-      return res.status(404).json({ error: 'Family household not found' });
-    }
-
-    const linkedApplicants = queryAll(db, "SELECT id, first_name, last_name, status FROM applicants WHERE family_id = ? AND (is_archived IS NULL OR is_archived = 0)", [id]);
-    if (linkedApplicants.length > 0) {
-      logAudit(db, staffName, 'delete_blocked', 'family', id, `Attempted to delete household "${family.household_name}" but blocked: ${linkedApplicants.length} active students still linked`);
-      return res.status(400).json({
-        error: `Cannot delete household "${family.household_name}". There are ${linkedApplicants.length} active student(s) linked to this family (${linkedApplicants.map(a => `${a.first_name} ${a.last_name}`).join(', ')}). Please reassign or un-link them before deleting.`
-      });
-    }
-
     db.run("UPDATE applicants SET family_id = NULL WHERE family_id = ?", [id]);
     db.run("DELETE FROM families WHERE id = ?", [id]);
     saveDb();
-    logAudit(db, staffName, 'delete', 'family', id, `Deleted household record: ${family.household_name} (${family.family_code || id})`);
     res.json({ success: true });
   } catch (err: any) {
     if (err instanceof ValidationError || err?.name === 'ValidationError') {
@@ -2014,12 +1771,8 @@ apiRouter.delete('/fees/:id', async (req, res) => {
   try {
     const db = await getDb();
     const { id } = req.params;
-    const staffName = req.headers['x-staff-name'] as string || 'Bursar';
-    const existing = queryOne(db, "SELECT * FROM fee_structures WHERE id = ?", [id]);
-
     db.run("DELETE FROM fee_structures WHERE id = ?", [id]);
     saveDb();
-    logAudit(db, staffName, 'delete', 'fee_structure', id, `Removed fee schedule rule: ${existing?.fee_type || 'Fee'} for ${existing?.grade || 'all grades'} (${existing?.academic_year || ''})`);
     res.json({ success: true });
   } catch (err: any) {
     if (err instanceof ValidationError || err?.name === 'ValidationError') {
@@ -2151,68 +1904,6 @@ apiRouter.get('/income/:id', async (req, res) => {
   }
 });
 
-apiRouter.put('/income/:id', async (req, res) => {
-  try {
-    const db = await getDb();
-    const { id } = req.params;
-    const body = req.body;
-    const staffName = req.headers['x-staff-name'] as string || 'Bursar';
-
-    const existing = queryOne(db, "SELECT * FROM income WHERE id = ?", [id]);
-    if (!existing) {
-      return res.status(404).json({ error: 'Income entry not found' });
-    }
-
-    const amount = validatePositiveAmount(body.amount !== undefined ? body.amount : existing.amount, 'amount');
-    const payerName = body.payer_name !== undefined ? String(body.payer_name).trim() : existing.payer_name;
-    const date = body.date || existing.date;
-    const source = body.source || existing.source;
-    const paymentMethod = body.payment_method || existing.payment_method;
-    const referenceNo = body.reference_no !== undefined ? String(body.reference_no) : existing.reference_no;
-    const notes = body.notes !== undefined ? String(body.notes) : existing.notes;
-
-    if (!payerName) {
-      return res.status(400).json({ error: 'Payer name cannot be empty' });
-    }
-
-    // Update editable fields without altering receipt_no or applicant_id/family_id linkage
-    db.run(`UPDATE income SET
-      amount = ?,
-      payer_name = ?,
-      date = ?,
-      source = ?,
-      payment_method = ?,
-      reference_no = ?,
-      notes = ?
-    WHERE id = ?`, [
-      amount,
-      payerName,
-      date,
-      source,
-      paymentMethod,
-      referenceNo,
-      notes,
-      id
-    ]);
-
-    // Resync installment plans for the linked applicant if applicable
-    if (existing.applicant_id) {
-      syncApplicantInstallmentPlans(db, existing.applicant_id);
-    }
-
-    saveDb();
-    logAudit(db, staffName, 'update', 'income', id, `Updated income entry ${existing.receipt_no} (LKR ${amount.toFixed(2)}) from ${payerName} for ${source}`);
-    res.json({ success: true, message: 'Income entry updated successfully', id });
-  } catch (err: any) {
-    if (err instanceof ValidationError || err?.name === 'ValidationError') {
-      return res.status(400).json({ error: err.message });
-    }
-    console.error(`[PUT /income/:id] error:`, err);
-    logErrorToFile('PUT /income/:id', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
 apiRouter.delete('/income/:id', async (req, res) => {
   try {
     const db = await getDb();
@@ -2265,71 +1956,65 @@ apiRouter.get('/reminders', async (req, res) => {
     const today = new Date();
 
     // 1. Overdue balances (> 30 days overdue with balance > 0)
-    const allBalances = calculateAllStudentBalances(db, ['enrolled', 'accepted']) || [];
+    const allBalances = calculateAllStudentBalances(db, ['enrolled', 'accepted']);
     const balancesRes = allBalances
-      .filter(b => b && (b.balance || 0) > 0 && ((b.days_overdue || 0) >= 30 || b.isOverdue))
+      .filter(b => b.balance > 0 && (b.days_overdue >= 30 || b.isOverdue))
       .map(b => ({
         id: `rem_bal_${b.id}`,
         type: 'overdue_balance',
         applicant_id: b.id,
-        student_name: `${b.first_name || ''} ${b.last_name || ''}`.trim() || 'Unnamed Student',
-        grade: b.grade_applying || 'Unassigned Grade',
-        guardian_name: b.guardian_name || '',
-        guardian_phone: b.guardian_phone || '',
-        guardian_email: b.guardian_email || '',
-        amount_due: b.balance || 0,
-        days_overdue: b.days_overdue || 0,
-        title: `Outstanding Tuition (LKR ${(b.balance || 0).toLocaleString()})`,
-        message: `Account is ${b.days_overdue || 0} days overdue. Last payment recorded ${b.lastPaymentDate || 'Never'}.`
+        student_name: `${b.first_name} ${b.last_name}`,
+        grade: b.grade_applying,
+        guardian_name: b.guardian_name,
+        guardian_phone: b.guardian_phone,
+        guardian_email: b.guardian_email,
+        amount_due: b.balance,
+        days_overdue: b.days_overdue,
+        title: `Outstanding Tuition (LKR ${b.balance.toLocaleString()})`,
+        message: `Account is ${b.days_overdue} days overdue. Last payment recorded ${b.lastPaymentDate || 'Never'}.`
       }));
 
     // 2. Stalled pipeline applicants
     const thresholdSetting = queryOne(db, "SELECT value FROM settings WHERE key = 'stalled_applicant_threshold_days'");
     const thresholdDays = thresholdSetting ? parseInt(thresholdSetting.value, 10) || 14 : 14;
 
-    const stalledApplicants = queryAll(db, "SELECT * FROM applicants WHERE (is_archived IS NULL OR is_archived = 0) AND status IN ('inquiry', 'applied', 'documents_submitted')") || [];
+    const stalledApplicants = queryAll(db, "SELECT * FROM applicants WHERE (is_archived IS NULL OR is_archived = 0) AND status IN ('inquiry', 'applied', 'documents_submitted')");
     const stalledRes: any[] = [];
     for (const s of stalledApplicants) {
-      if (!s) continue;
-      const rawDate = s.status_updated_at || s.created_at;
-      const updateDate = rawDate ? new Date(rawDate) : today;
-      const validTime = isNaN(updateDate.getTime()) ? today.getTime() : updateDate.getTime();
-      const stalledDays = Math.max(0, Math.floor((today.getTime() - validTime) / (1000 * 60 * 60 * 24)));
+      const updateDate = new Date(s.status_updated_at || s.created_at);
+      const stalledDays = Math.floor((today.getTime() - updateDate.getTime()) / (1000 * 60 * 60 * 24));
       if (stalledDays >= thresholdDays) {
-        const safeStatus = String(s.status || 'inquiry');
         stalledRes.push({
           id: `rem_stall_${s.id}`,
           type: 'stalled_applicant',
           applicant_id: s.id,
-          student_name: `${s.first_name || ''} ${s.last_name || ''}`.trim() || 'Applicant',
-          grade: s.grade_applying || 'General',
-          guardian_name: s.guardian_name || '',
-          guardian_phone: s.guardian_phone || '',
-          guardian_email: s.guardian_email || '',
-          status: safeStatus,
+          student_name: `${s.first_name} ${s.last_name}`,
+          grade: s.grade_applying,
+          guardian_name: s.guardian_name,
+          guardian_phone: s.guardian_phone,
+          guardian_email: s.guardian_email,
+          status: s.status,
           days_stalled: stalledDays,
-          title: `Stalled in '${safeStatus.replace('_', ' ')}'`,
-          message: `Application has been in ${safeStatus} stage for ${stalledDays} days without progression.`
+          title: `Stalled in '${s.status.replace('_', ' ')}'`,
+          message: `Application has been in ${s.status} stage for ${stalledDays} days without progression.`
         });
       }
     }
 
     // 3. Upcoming assessments scheduled
-    const upcomingAssessments = queryAll(db, "SELECT * FROM assessments WHERE status = 'Scheduled' ORDER BY scheduled_at ASC") || [];
-    const assessmentRes = upcomingAssessments
-      .filter(asm => asm != null)
-      .map(asm => ({
-        id: `rem_asm_${asm.id}`,
-        type: 'upcoming_assessment',
-        applicant_id: asm.applicant_id,
-        student_name: asm.applicant_name || 'Candidate',
-        grade: asm.grade || '',
-        scheduled_at: asm.scheduled_at,
-        interviewer: asm.interviewer_name || 'Staff',
-        assessment_type: asm.assessment_type || 'Assessment',
-        title: `${asm.assessment_type || 'Assessment'} Scheduled`,
-        message: `Assessment with ${asm.interviewer_name || 'Staff'} set for ${asm.scheduled_at || 'scheduled date'}.`
-      }));
+    const upcomingAssessments = queryAll(db, "SELECT * FROM assessments WHERE status = 'Scheduled' ORDER BY scheduled_at ASC");
+    const assessmentRes = upcomingAssessments.map(asm => ({
+      id: `rem_asm_${asm.id}`,
+      type: 'upcoming_assessment',
+      applicant_id: asm.applicant_id,
+      student_name: asm.applicant_name,
+      grade: asm.grade,
+      scheduled_at: asm.scheduled_at,
+      interviewer: asm.interviewer_name,
+      assessment_type: asm.assessment_type,
+      title: `${asm.assessment_type} Scheduled`,
+      message: `Assessment with ${asm.interviewer_name} set for ${asm.scheduled_at}.`
+    }));
 
     const totalCount = balancesRes.length + stalledRes.length + assessmentRes.length;
     res.json({
@@ -2344,33 +2029,6 @@ apiRouter.get('/reminders', async (req, res) => {
     }
     console.error(`[GET /reminders] error:`, err);
     logErrorToFile('GET /reminders', err);
-    res.status(500).json({ error: err.message });
-  }
-});
-
-apiRouter.get('/reminders/count', async (req, res) => {
-  try {
-    const db = await getDb();
-    const allBalances = calculateAllStudentBalances(db, ['enrolled', 'accepted']) || [];
-    const balancesCount = allBalances.filter(b => b && (b.balance || 0) > 0 && ((b.days_overdue || 0) >= 30 || b.isOverdue)).length;
-
-    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const stalledRow = queryOne(
-      db,
-      `SELECT COUNT(*) as count FROM applicants WHERE status IN ('draft', 'submitted', 'under_review') AND updated_at < ?`,
-      [sevenDaysAgo]
-    );
-
-    const assessmentRow = queryOne(
-      db,
-      `SELECT COUNT(*) as count FROM assessments WHERE status = 'Scheduled'`,
-      []
-    );
-
-    const total = balancesCount + (stalledRow?.count || 0) + (assessmentRow?.count || 0);
-    res.json({ count: total, totalCount: total });
-  } catch (err: any) {
-    console.error(`[GET /reminders/count] error:`, err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -2819,67 +2477,6 @@ apiRouter.get(['/dashboard/metrics', '/dashboard/stats'], async (req, res) => {
     const expensesThisWeek = expenseThisWeekRow?.sum ? Number(expenseThisWeekRow.sum) : 0;
     const netMovement = incomeThisWeek - expensesThisWeek;
 
-    // Monthly Revenue vs. Expenses aggregation (rolling 12 months)
-    const incomeByMonthRows = queryAll(db, "SELECT substr(date, 1, 7) as month, SUM(amount) as sum, COUNT(*) as count FROM income GROUP BY substr(date, 1, 7)");
-    const expenseByMonthRows = queryAll(db, "SELECT substr(date, 1, 7) as month, SUM(amount) as sum, COUNT(*) as count FROM expenses GROUP BY substr(date, 1, 7)");
-
-    const incomeMonthMap: Record<string, number> = {};
-    for (const r of incomeByMonthRows) {
-      if (r.month) incomeMonthMap[r.month] = Number(r.sum || 0);
-    }
-    const expenseMonthMap: Record<string, number> = {};
-    for (const r of expenseByMonthRows) {
-      if (r.month) expenseMonthMap[r.month] = Number(r.sum || 0);
-    }
-
-    const latestIncome = queryOne(db, "SELECT MAX(date) as max_date FROM income");
-    const latestExpense = queryOne(db, "SELECT MAX(date) as max_date FROM expenses");
-    const maxDateStr = [latestIncome?.max_date, latestExpense?.max_date, toYMD(new Date())]
-      .filter(Boolean)
-      .sort()
-      .reverse()[0] || toYMD(new Date());
-
-    const anchorDate = new Date(maxDateStr + 'T00:00:00');
-
-    const monthlyFinancials: Array<{
-      monthKey: string;
-      month: string;
-      shortMonth: string;
-      fullMonth: string;
-      year: number;
-      revenue: number;
-      expenses: number;
-      net: number;
-      savingsRate: number;
-    }> = [];
-
-    for (let i = 11; i >= 0; i--) {
-      const d = new Date(anchorDate.getFullYear(), anchorDate.getMonth() - i, 1);
-      const year = d.getFullYear();
-      const monthNum = String(d.getMonth() + 1).padStart(2, '0');
-      const monthKey = `${year}-${monthNum}`;
-      const shortMonth = d.toLocaleDateString('en-US', { month: 'short' });
-      const month = `${shortMonth} '${String(year).slice(-2)}`;
-      const fullMonth = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-
-      const revenue = Math.round(incomeMonthMap[monthKey] || 0);
-      const expenses = Math.round(expenseMonthMap[monthKey] || 0);
-      const net = revenue - expenses;
-      const savingsRate = revenue > 0 ? Math.round((net / revenue) * 100) : 0;
-
-      monthlyFinancials.push({
-        monthKey,
-        month,
-        shortMonth,
-        fullMonth,
-        year,
-        revenue,
-        expenses,
-        net,
-        savingsRate,
-      });
-    }
-
     res.json({
       targetCapacity,
       enrolledCount,
@@ -2904,8 +2501,6 @@ apiRouter.get(['/dashboard/metrics', '/dashboard/stats'], async (req, res) => {
       netMovement,
       outstanding: outstandingTotal,
       outstandingTotal,
-      monthlyFinancials,
-      monthlyTrends: monthlyFinancials,
       financials: {
         totalIncome: incomeTotal,
         totalExpense: expenseTotal,
@@ -2913,8 +2508,7 @@ apiRouter.get(['/dashboard/metrics', '/dashboard/stats'], async (req, res) => {
         incomeThisWeek,
         expensesThisWeek,
         netMovement,
-        outstanding: outstandingTotal,
-        monthlyFinancials
+        outstanding: outstandingTotal
       },
       recentIncome,
       recentExpenses,
