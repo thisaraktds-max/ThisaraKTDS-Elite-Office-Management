@@ -232,6 +232,7 @@ export const StaffOnboardingTour: React.FC<StaffOnboardingTourProps> = ({
               onClick={onClose}
               className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
               title="Close Tour (Esc)"
+              aria-label="Close Tour"
             >
               <X className="w-3.5 h-3.5" />
             </button>

@@ -234,6 +234,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
           {query && (
             <button
               onClick={() => setQuery('')}
+              aria-label="Clear search"
               className="text-muted-foreground hover:text-foreground p-1"
             >
               <X className="w-4 h-4" />

@@ -36,6 +36,8 @@ export const GuidedEnrollmentModal: React.FC<GuidedEnrollmentModalProps> = ({
 
   const [step, setStep] = useState<number>(1);
   const [families, setFamilies] = useState<Family[]>([]);
+  const [settings, setSettings] = useState<any>({});
+  const currency = settings.currency_symbol || 'LKR';
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Form State
@@ -82,6 +84,11 @@ export const GuidedEnrollmentModal: React.FC<GuidedEnrollmentModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      fetch('/api/settings')
+        .then((res) => res.json())
+        .then((data) => setSettings(data || {}))
+        .catch(() => {});
+
       fetch('/api/families')
         .then((res) => res.json())
         .then((data) => setFamilies(data || []))
@@ -278,6 +285,7 @@ export const GuidedEnrollmentModal: React.FC<GuidedEnrollmentModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
           >
             <X className="w-5 h-5" />
@@ -554,7 +562,7 @@ export const GuidedEnrollmentModal: React.FC<GuidedEnrollmentModalProps> = ({
               <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground">Standard Tuition for {formData.grade_applying}:</span>
                 <span className="font-mono font-bold text-foreground">
-                  LKR {formData.baseTuition.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  {currency} {formData.baseTuition.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </span>
               </div>
 
@@ -581,7 +589,7 @@ export const GuidedEnrollmentModal: React.FC<GuidedEnrollmentModalProps> = ({
                     onChange={(e) => setFormData({ ...formData, scholarshipType: e.target.value as any })}
                   >
                     <option value="percentage">Percentage (%)</option>
-                    <option value="fixed">Fixed Amount (LKR)</option>
+                    <option value="fixed">Fixed Amount ({currency})</option>
                   </select>
                 </div>
                 <div>
@@ -602,7 +610,7 @@ export const GuidedEnrollmentModal: React.FC<GuidedEnrollmentModalProps> = ({
               <div className="p-3 rounded-lg bg-primary/5 border border-primary/20 flex items-center justify-between text-xs">
                 <span className="font-semibold text-primary">Expected Annual Net Receivable:</span>
                 <span className="font-mono font-bold text-base text-primary">
-                  LKR {netTuition.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  {currency} {netTuition.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>
@@ -689,7 +697,7 @@ export const GuidedEnrollmentModal: React.FC<GuidedEnrollmentModalProps> = ({
                   </span>
                 </div>
                 <span className="font-mono font-bold text-base text-emerald-700 dark:text-emerald-400">
-                  LKR {netTuition.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  {currency} {netTuition.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </span>
               </div>
             </div>

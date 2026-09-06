@@ -212,6 +212,7 @@ export const QuickPaymentModal: React.FC<QuickPaymentModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="p-1 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
           >
             <X className="w-5 h-5" />

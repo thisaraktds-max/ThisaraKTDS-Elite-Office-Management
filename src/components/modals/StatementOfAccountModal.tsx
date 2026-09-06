@@ -216,29 +216,31 @@ export const StatementOfAccountModal: React.FC<StatementOfAccountModalProps> = (
             <div className="mb-6">
               <div className="eyebrow mb-2">1. Fee Schedule & Assessment Charges</div>
               <div className="border border-border rounded-lg overflow-hidden">
-                <table className="w-full text-xs">
-                  <thead className="bg-muted/50 border-b border-border font-mono">
-                    <tr>
-                      <th className="py-2.5 px-4 text-left">Fee Item / Description</th>
-                      <th className="py-2.5 px-4 text-left">Classification</th>
-                      <th className="py-2.5 px-4 text-right">Gross Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {fin?.feeItems?.map((fee: any) => (
-                      <tr key={fee.id}>
-                        <td className="py-2.5 px-4 font-medium">{fee.fee_type} ({fee.academic_year})</td>
-                        <td className="py-2.5 px-4 text-muted-foreground">{fee.description || 'Standard Assessment Fee'}</td>
-                        <td className="py-2.5 px-4 text-right mono font-medium">{currency}{Number(fee.amount).toFixed(2)}</td>
-                      </tr>
-                    ))}
-                    {(!fin?.feeItems || fin?.feeItems.length === 0) && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50 border-b border-border font-mono">
                       <tr>
-                        <td colSpan={3} className="py-4 text-center text-muted-foreground">No prescribed fee schedules found for this grade.</td>
+                        <th className="py-2.5 px-4 text-left">Fee Item / Description</th>
+                        <th className="py-2.5 px-4 text-left">Classification</th>
+                        <th className="py-2.5 px-4 text-right">Gross Amount</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {fin?.feeItems?.map((fee: any) => (
+                        <tr key={fee.id}>
+                          <td className="py-2.5 px-4 font-medium">{fee.fee_type} ({fee.academic_year})</td>
+                          <td className="py-2.5 px-4 text-muted-foreground">{fee.description || 'Standard Assessment Fee'}</td>
+                          <td className="py-2.5 px-4 text-right mono font-medium">{currency}{Number(fee.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                        </tr>
+                      ))}
+                      {(!fin?.feeItems || fin?.feeItems.length === 0) && (
+                        <tr>
+                          <td colSpan={3} className="py-4 text-center text-muted-foreground">No prescribed fee schedules found for this grade.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
 
@@ -247,29 +249,31 @@ export const StatementOfAccountModal: React.FC<StatementOfAccountModalProps> = (
               <div className="mb-6">
                 <div className="eyebrow mb-2">2. Fee Abatements, Scholarships & Sibling Concessions</div>
                 <div className="border border-border rounded-lg overflow-hidden">
-                  <table className="w-full text-xs">
-                    <thead className="bg-muted/50 border-b border-border font-mono">
-                      <tr>
-                        <th className="py-2.5 px-4 text-left">Bursary Title</th>
-                        <th className="py-2.5 px-4 text-left">Justification</th>
-                        <th className="py-2.5 px-4 text-right">Adjustment Value</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {fin?.scholarships.map((sch: any) => (
-                        <tr key={sch.id} className="text-[hsl(162,30%,35%)]">
-                          <td className="py-2 px-4 font-medium">{sch.title}</td>
-                          <td className="py-2 px-4">{sch.justification || 'Approved institutional concession'}</td>
-                          <td className="py-2 px-4 text-right mono font-bold">
-                            -{currency}{sch.discount_type === 'percentage'
-                              ? ((fin.baseTuition * sch.value) / 100).toFixed(2)
-                              : Number(sch.value).toFixed(2)}
-                            {sch.discount_type === 'percentage' && ` (${sch.value}%)`}
-                          </td>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead className="bg-muted/50 border-b border-border font-mono">
+                        <tr>
+                          <th className="py-2.5 px-4 text-left">Bursary Title</th>
+                          <th className="py-2.5 px-4 text-left">Justification</th>
+                          <th className="py-2.5 px-4 text-right">Adjustment Value</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {fin?.scholarships.map((sch: any) => (
+                          <tr key={sch.id} className="text-[hsl(162,30%,35%)]">
+                            <td className="py-2 px-4 font-medium">{sch.title}</td>
+                            <td className="py-2 px-4">{sch.justification || 'Approved institutional concession'}</td>
+                            <td className="py-2 px-4 text-right mono font-bold">
+                              -{currency}{sch.discount_type === 'percentage'
+                                ? ((fin.baseTuition * sch.value) / 100).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                                : Number(sch.value).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              {sch.discount_type === 'percentage' && ` (${sch.value}%)`}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
             )}
@@ -278,35 +282,37 @@ export const StatementOfAccountModal: React.FC<StatementOfAccountModalProps> = (
             <div className="mb-6">
               <div className="eyebrow mb-2">3. Payments Received & Settlements to Date</div>
               <div className="border border-border rounded-lg overflow-hidden">
-                <table className="w-full text-xs">
-                  <thead className="bg-muted/50 border-b border-border font-mono">
-                    <tr>
-                      <th className="py-2.5 px-4 text-left">Receipt #</th>
-                      <th className="py-2.5 px-4 text-left">Date</th>
-                      <th className="py-2.5 px-4 text-left">Payment Mode & Ref</th>
-                      <th className="py-2.5 px-4 text-left">Received By</th>
-                      <th className="py-2.5 px-4 text-right">Amount Credited</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {fin?.payments?.map((pay: any) => (
-                      <tr key={pay.id}>
-                        <td className="py-2.5 px-4 mono font-semibold text-primary">{pay.receipt_no}</td>
-                        <td className="py-2.5 px-4">{pay.date}</td>
-                        <td className="py-2.5 px-4 text-muted-foreground">{pay.payment_method} {pay.reference_no && `(${pay.reference_no})`}</td>
-                        <td className="py-2.5 px-4 text-muted-foreground">{pay.received_by_staff_name}</td>
-                        <td className="py-2.5 px-4 text-right mono font-bold text-[hsl(162,30%,35%)]">
-                          {currency}{Number(pay.amount).toFixed(2)}
-                        </td>
-                      </tr>
-                    ))}
-                    {(!fin?.payments || fin?.payments.length === 0) && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs">
+                    <thead className="bg-muted/50 border-b border-border font-mono">
                       <tr>
-                        <td colSpan={5} className="py-4 text-center text-muted-foreground">No payments credited to this account to date.</td>
+                        <th className="py-2.5 px-4 text-left">Receipt #</th>
+                        <th className="py-2.5 px-4 text-left">Date</th>
+                        <th className="py-2.5 px-4 text-left">Payment Mode & Ref</th>
+                        <th className="py-2.5 px-4 text-left">Received By</th>
+                        <th className="py-2.5 px-4 text-right">Amount Credited</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-border">
+                      {fin?.payments?.map((pay: any) => (
+                        <tr key={pay.id}>
+                          <td className="py-2.5 px-4 mono font-semibold text-primary">{pay.receipt_no}</td>
+                          <td className="py-2.5 px-4">{pay.date}</td>
+                          <td className="py-2.5 px-4 text-muted-foreground">{pay.payment_method} {pay.reference_no && `(${pay.reference_no})`}</td>
+                          <td className="py-2.5 px-4 text-muted-foreground">{pay.received_by_staff_name}</td>
+                          <td className="py-2.5 px-4 text-right mono font-bold text-[hsl(162,30%,35%)]">
+                            {currency}{Number(pay.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                        </tr>
+                      ))}
+                      {(!fin?.payments || fin?.payments.length === 0) && (
+                        <tr>
+                          <td colSpan={5} className="py-4 text-center text-muted-foreground">No payments credited to this account to date.</td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
             </div>
 
@@ -315,23 +321,23 @@ export const StatementOfAccountModal: React.FC<StatementOfAccountModalProps> = (
               <div className="w-80 p-4 rounded-xl bg-muted/40 border border-border space-y-2 text-xs">
                 <div className="flex justify-between text-muted-foreground">
                   <span>Gross Prescribed Charges:</span>
-                  <span className="mono font-semibold">{currency}{Number(fin?.totalGross || 0).toFixed(2)}</span>
+                  <span className="mono font-semibold">{currency}{Number(fin?.totalGross || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between text-[hsl(162,30%,35%)]">
                   <span>Less Total Abatements:</span>
-                  <span className="mono font-semibold">-{currency}{Number(fin?.discountTotal || 0).toFixed(2)}</span>
+                  <span className="mono font-semibold">-{currency}{Number(fin?.discountTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between font-semibold text-foreground pt-1 border-t border-border">
                   <span>Net Expected Tuition:</span>
-                  <span className="mono">{currency}{Number(fin?.expectedNet || 0).toFixed(2)}</span>
+                  <span className="mono">{currency}{Number(fin?.expectedNet || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between text-[hsl(162,30%,35%)]">
                   <span>Total Payments Credited:</span>
-                  <span className="mono font-semibold">{currency}{Number(fin?.paidTotal || 0).toFixed(2)}</span>
+                  <span className="mono font-semibold">{currency}{Number(fin?.paidTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
                 <div className="flex justify-between items-center text-sm font-bold pt-2 border-t-2 border-primary text-primary">
                   <span>TOTAL BALANCE DUE:</span>
-                  <span className="mono text-base">{currency}{Number(fin?.balanceDue || 0).toFixed(2)}</span>
+                  <span className="mono text-base">{currency}{Number(fin?.balanceDue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                 </div>
               </div>
             </div>

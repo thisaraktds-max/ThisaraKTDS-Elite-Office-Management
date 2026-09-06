@@ -142,6 +142,7 @@ export const StaffSwitchModal: React.FC = () => {
           </div>
           <button
             onClick={closeSwitchModal}
+            aria-label="Close"
             className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground text-sm font-bold transition-colors"
           >
             <X className="w-5 h-5" />

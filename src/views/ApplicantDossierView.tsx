@@ -76,6 +76,8 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
   const [activeTab, setActiveTab] = useState<'profile' | 'docs' | 'family' | 'financials' | 'installments' | 'medical' | 'comms' | 'timeline'>('profile');
   const [dossier, setDossier] = useState<any>(null);
   const [families, setFamilies] = useState<Family[]>([]);
+  const [settings, setSettings] = useState<any>({});
+  const currency = settings.currency_symbol || 'LKR';
   const [timelineLogs, setTimelineLogs] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
@@ -113,10 +115,16 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
   const fetchDossier = async () => {
     setIsLoading(true);
     try {
-      const [dossierRes, familiesRes] = await Promise.all([
+      const [dossierRes, familiesRes, settingsRes] = await Promise.all([
         fetch(`/api/applicants/${applicantId}`),
         fetch('/api/families'),
+        fetch('/api/settings'),
       ]);
+
+      if (settingsRes.ok) {
+        const sData = await settingsRes.json();
+        setSettings(sData);
+      }
 
       if (dossierRes.ok) {
         const data = await dossierRes.json();
@@ -714,7 +722,7 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
                     }`}
                     title={
                       tab.balanceDue > 0
-                        ? `Balance Due: LKR ${tab.balanceDue.toLocaleString()}`
+                        ? `Balance Due: ${currency} ${tab.balanceDue.toLocaleString()}`
                         : 'Account Settled'
                     }
                   />
@@ -1287,24 +1295,24 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
             <div className="p-4 rounded-xl bg-card border border-border">
               <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-wider block mb-1">1. Gross Charges</span>
-              <span className="font-mono font-bold text-base text-foreground block">LKR {Number(financials.totalGross).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              <span className="font-mono font-bold text-base text-foreground block">{currency} {Number(financials.totalGross).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="p-4 rounded-xl bg-card border border-border">
               <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-wider block mb-1">2. Abatements</span>
-              <span className="font-mono font-bold text-base text-primary block">-LKR {Number(financials.discountTotal).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              <span className="font-mono font-bold text-base text-primary block">-{currency} {Number(financials.discountTotal).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="p-4 rounded-xl bg-card border border-border">
               <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-wider block mb-1">3. Net Expected</span>
-              <span className="font-mono font-bold text-base text-foreground block">LKR {Number(financials.expectedNet).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              <span className="font-mono font-bold text-base text-foreground block">{currency} {Number(financials.expectedNet).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="p-4 rounded-xl bg-card border border-border">
               <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-wider block mb-1">4. Payments Credited</span>
-              <span className="font-mono font-bold text-base text-primary block">LKR {Number(financials.paidTotal).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              <span className="font-mono font-bold text-base text-primary block">{currency} {Number(financials.paidTotal).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
             </div>
             <div className="p-4 rounded-xl bg-card border border-primary/40 bg-primary/5">
               <span className="text-[10px] font-mono font-semibold text-primary uppercase tracking-wider block mb-1">5. Outstanding Due</span>
               <span className={`font-mono font-bold text-base block ${financials.balanceDue > 0 ? 'text-destructive' : 'text-primary'}`}>
-                LKR {Number(financials.balanceDue).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                {currency} {Number(financials.balanceDue).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </span>
             </div>
           </div>
@@ -1361,11 +1369,11 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
                     onChange={e => setSchForm({ ...schForm, discount_type: e.target.value })}
                   >
                     <option value="percentage">Percentage (%)</option>
-                    <option value="fixed">Fixed Amount (LKR)</option>
+                    <option value="fixed">Fixed Amount ({currency})</option>
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold mb-1">Value ({schForm.discount_type === 'percentage' ? '%' : 'LKR'})</label>
+                  <label className="block text-xs font-semibold mb-1">Value ({schForm.discount_type === 'percentage' ? '%' : currency})</label>
                   <input
                     type="number"
                     step="0.01"
@@ -1401,8 +1409,8 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
                 <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Fee Abatements & Concessions</div>
                 <h4 className="text-sm font-bold text-foreground">Applied Scholarships & Institutional Discounts</h4>
               </div>
-              <span className="badge badge-soft text-[10px] font-mono">
-                Total Abatements: -LKR {Number(financials.discountTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              <span className="badge badge-soft text-[10px] font-mono whitespace-nowrap">
+                Total Abatements: -{currency} {Number(financials.discountTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </span>
             </div>
 
@@ -1430,7 +1438,7 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
                       <td className="mono font-bold text-xs text-primary">
                         {sch.discount_type === 'percentage'
                           ? `${sch.value}% off tuition`
-                          : `LKR ${Number(sch.value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+                          : `${currency} ${Number(sch.value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
                       </td>
                       <td className="text-xs text-muted-foreground max-w-xs truncate">{sch.justification || 'Standard discount'}</td>
                       <td className="text-xs text-muted-foreground">{sch.approved_by || 'Admissions / Bursar'}</td>
@@ -1462,53 +1470,55 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
           {/* Itemized Payments History */}
           <div className="panel p-5">
             <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">Credited Payment Receipts</div>
-            <table className="table-clean w-full">
-              <thead>
-                <tr>
-                  <th>Receipt #</th>
-                  <th>Date</th>
-                  <th>Payment Method</th>
-                  <th>Payer</th>
-                  <th>Received By</th>
-                  <th className="text-right">Amount</th>
-                  <th className="text-right">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {financials.payments?.map((p: any) => (
-                  <tr key={p.id}>
-                    <td className="font-mono font-semibold text-xs text-primary">{p.receipt_no}</td>
-                    <td className="text-xs text-muted-foreground">{p.date}</td>
-                    <td className="text-xs">{p.payment_method} {p.reference_no && `(${p.reference_no})`}</td>
-                    <td className="text-xs font-medium text-foreground">{p.payer_name}</td>
-                    <td className="text-xs text-muted-foreground">{p.received_by_staff_name}</td>
-                    <td className="text-right font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
-                      +LKR {Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                    </td>
-                    <td className="text-right whitespace-nowrap">
-                      {onOpenReceiptModal && (
-                        <button
-                          type="button"
-                          onClick={() => onOpenReceiptModal(p.id)}
-                          className="btn btn-soft !py-1 !px-2.5 text-[11px] inline-flex items-center gap-1.5 font-medium rounded-lg hover:text-primary transition-colors cursor-pointer"
-                          title={`View or Print Receipt ${p.receipt_no}`}
-                        >
-                          <Printer className="w-3 h-3 text-muted-foreground" />
-                          <span>Receipt</span>
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
-                {(!financials.payments || financials.payments.length === 0) && (
+            <div className="overflow-x-auto">
+              <table className="table-clean w-full">
+                <thead>
                   <tr>
-                    <td colSpan={7} className="py-6 text-center text-xs text-muted-foreground">
-                      No payments credited for this student yet.
-                    </td>
+                    <th>Receipt #</th>
+                    <th>Date</th>
+                    <th>Payment Method</th>
+                    <th>Payer</th>
+                    <th>Received By</th>
+                    <th className="text-right">Amount</th>
+                    <th className="text-right">Action</th>
                   </tr>
-                )}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {financials.payments?.map((p: any) => (
+                    <tr key={p.id}>
+                      <td className="font-mono font-semibold text-xs text-primary">{p.receipt_no}</td>
+                      <td className="text-xs text-muted-foreground">{p.date}</td>
+                      <td className="text-xs">{p.payment_method} {p.reference_no && `(${p.reference_no})`}</td>
+                      <td className="text-xs font-medium text-foreground">{p.payer_name}</td>
+                      <td className="text-xs text-muted-foreground">{p.received_by_staff_name}</td>
+                      <td className="text-right font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
+                        +{currency} {Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </td>
+                      <td className="text-right whitespace-nowrap">
+                        {onOpenReceiptModal && (
+                          <button
+                            type="button"
+                            onClick={() => onOpenReceiptModal(p.id)}
+                            className="btn btn-soft !py-1 !px-2.5 text-[11px] inline-flex items-center gap-1.5 font-medium rounded-lg hover:text-primary transition-colors cursor-pointer"
+                            title={`View or Print Receipt ${p.receipt_no}`}
+                          >
+                            <Printer className="w-3 h-3 text-muted-foreground" />
+                            <span>Receipt</span>
+                          </button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                  {(!financials.payments || financials.payments.length === 0) && (
+                    <tr>
+                      <td colSpan={7} className="py-6 text-center text-xs text-muted-foreground">
+                        No payments credited for this student yet.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
@@ -1544,54 +1554,56 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
             </div>
           </div>
 
-          <table className="table-clean w-full">
-            <thead>
-              <tr>
-                <th>#</th>
-                <th>Installment Title</th>
-                <th>Due Date</th>
-                <th>Amount Due</th>
-                <th>Amount Paid</th>
-                <th>Status</th>
-                <th className="text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {installments.map(inst => (
-                <tr key={inst.id}>
-                  <td className="font-mono text-xs text-muted-foreground">{inst.installment_number}</td>
-                  <td className="font-semibold text-xs text-foreground">{inst.title}</td>
-                  <td className="font-mono text-xs">{inst.due_date}</td>
-                  <td className="font-mono text-xs font-bold">LKR {Number(inst.amount_due).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                  <td className="font-mono text-xs text-emerald-600 dark:text-emerald-400 font-semibold">LKR {Number(inst.amount_paid).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                  <td>
-                    <span className={`badge ${
-                      inst.status === 'Paid' ? 'badge-accepted' : inst.status === 'Overdue' ? 'badge-declined' : 'badge-applied'
-                    }`}>
-                      {inst.status}
-                    </span>
-                  </td>
-                  <td className="text-right">
-                    {inst.status !== 'Paid' && (
-                      <button
-                        onClick={() => onOpenRecordIncome(app.id, inst.amount_due - inst.amount_paid)}
-                        className="btn btn-soft !py-1 !px-2 text-xs"
-                      >
-                        Record Settlement
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-              {installments.length === 0 && (
+          <div className="overflow-x-auto">
+            <table className="table-clean w-full">
+              <thead>
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-xs text-muted-foreground">
-                    No active installment schedule configured. Click one of the generator buttons above.
-                  </td>
+                  <th>#</th>
+                  <th>Installment Title</th>
+                  <th>Due Date</th>
+                  <th>Amount Due</th>
+                  <th>Amount Paid</th>
+                  <th>Status</th>
+                  <th className="text-right">Action</th>
                 </tr>
-              )}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {installments.map(inst => (
+                  <tr key={inst.id}>
+                    <td className="font-mono text-xs text-muted-foreground">{inst.installment_number}</td>
+                    <td className="font-semibold text-xs text-foreground">{inst.title}</td>
+                    <td className="font-mono text-xs">{inst.due_date}</td>
+                    <td className="font-mono text-xs font-bold">{currency} {Number(inst.amount_due).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="font-mono text-xs text-emerald-600 dark:text-emerald-400 font-semibold">{currency} {Number(inst.amount_paid).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td>
+                      <span className={`badge ${
+                        inst.status === 'Paid' ? 'badge-accepted' : inst.status === 'Overdue' ? 'badge-declined' : 'badge-applied'
+                      }`}>
+                        {inst.status}
+                      </span>
+                    </td>
+                    <td className="text-right">
+                      {inst.status !== 'Paid' && (
+                        <button
+                          onClick={() => onOpenRecordIncome(app.id, inst.amount_due - inst.amount_paid)}
+                          className="btn btn-soft !py-1 !px-2 text-xs"
+                        >
+                          Record Settlement
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+                {installments.length === 0 && (
+                  <tr>
+                    <td colSpan={7} className="py-8 text-center text-xs text-muted-foreground">
+                      No active installment schedule configured. Click one of the generator buttons above.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -1896,7 +1908,7 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
         variant="danger"
         isConfirming={isDeletingScholarship}
         warningDetails={[
-          `Discount Value: ${scholarshipToDelete?.discount_type === 'percentage' ? `${scholarshipToDelete?.value}% off standard tuition` : `LKR ${Number(scholarshipToDelete?.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} fixed`}`,
+          `Discount Value: ${scholarshipToDelete?.discount_type === 'percentage' ? `${scholarshipToDelete?.value}% off standard tuition` : `${currency} ${Number(scholarshipToDelete?.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} fixed`}`,
           'Removing this concession will immediately increase the net tuition expected and student outstanding balance due.',
           'Any active installment plans will need to be re-evaluated to adjust for the revised net tuition.',
           'This removal will be recorded permanently in the staff audit trail.',

@@ -166,7 +166,7 @@ export const CommunicationsModal: React.FC<CommunicationsModalProps> = ({
               <h3 className="text-lg font-serif font-bold text-foreground">Draft Guardian Notice</h3>
             </div>
           </div>
-          <button onClick={onClose} className="btn-ghost p-1.5 rounded-lg text-muted-foreground">
+          <button onClick={onClose} aria-label="Close" className="btn-ghost p-1.5 rounded-lg text-muted-foreground">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -185,7 +185,7 @@ export const CommunicationsModal: React.FC<CommunicationsModalProps> = ({
           {recipient.balance_due && (
             <div className="text-right">
               <span className="eyebrow block">Balance Due</span>
-              <span className="mono font-bold text-sm text-destructive">${Number(recipient.balance_due).toFixed(2)}</span>
+              <span className="mono font-bold text-sm text-destructive">{settings.currency_symbol || 'LKR'} {Number(recipient.balance_due).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </div>
           )}
         </div>

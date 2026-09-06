@@ -518,7 +518,7 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
                 <div className="text-right">
                   <span className="eyebrow block">Amount Received</span>
                   <span className="mono font-bold text-2xl text-[hsl(162,30%,35%)] dark:text-emerald-400">
-                    {currency}{Number(receipt.amount).toFixed(2)}
+                    {currency}{Number(receipt.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </span>
                 </div>
               </div>
@@ -634,7 +634,7 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
                 <div className="py-1 text-center border-y border-black border-double my-1.5">
                   <div className="text-[9px] font-bold uppercase tracking-wider">AMOUNT RECEIVED</div>
                   <div className="text-sm font-bold font-mono tracking-tight mt-0.5">
-                    {currency}{Number(receipt.amount).toFixed(2)}
+                    {currency}{Number(receipt.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </div>
                 </div>
 

@@ -24,6 +24,8 @@ export const FamiliesView: React.FC<{ onOpenDossier: (id: string) => void }> = (
   const { getHeaders } = useStaff();
   const { showToast } = useNotification();
   const [families, setFamilies] = useState<Family[]>([]);
+  const [settings, setSettings] = useState<any>({});
+  const currency = settings.currency_symbol || 'LKR';
   const [search, setSearch] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -47,7 +49,13 @@ export const FamiliesView: React.FC<{ onOpenDossier: (id: string) => void }> = (
   const fetchFamilies = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/families');
+      const [res, settingsRes] = await Promise.all([
+        fetch('/api/families'),
+        fetch('/api/settings'),
+      ]);
+      if (settingsRes.ok) {
+        setSettings(await settingsRes.json());
+      }
       if (res.ok) {
         const data = await res.json();
         setFamilies(data);
@@ -279,7 +287,7 @@ export const FamiliesView: React.FC<{ onOpenDossier: (id: string) => void }> = (
 
               <div className="pt-3 border-t border-border flex items-center justify-between text-xs">
                 <span className="text-muted-foreground font-mono text-[10px]">
-                  Total Credited: <strong className="text-foreground">${Number(fam.total_paid || 0).toFixed(2)}</strong>
+                  Total Credited: <strong className="text-foreground">{currency} {Number(fam.total_paid || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
                 </span>
               </div>
             </div>

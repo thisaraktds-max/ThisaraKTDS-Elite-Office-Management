@@ -273,7 +273,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                           <span className="truncate">{item.label}</span>
                         </div>
                         {item.badge !== undefined && item.badge > 0 && (
-                          <span className="badge-pill bg-destructive text-destructive-foreground mono font-bold text-[10px] px-1.5 py-0.2 rounded-full">
+                          <span className="badge-pill bg-destructive text-destructive-foreground mono font-bold text-[10px] px-1.5 py-0.5 rounded-full">
                             {item.badge}
                           </span>
                         )}

@@ -92,7 +92,6 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     const resetTimer = () => {
       clearTimeout(timeoutId);
       timeoutId = setTimeout(() => {
-        console.log(`[Security] Auto-locking session due to ${sessionTimeoutMinutes} minutes inactivity`);
         lockSession();
       }, timeoutDuration);
     };

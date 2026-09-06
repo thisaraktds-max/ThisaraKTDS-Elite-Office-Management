@@ -24,6 +24,8 @@ export const RecordIncomeModal: React.FC<RecordIncomeModalProps> = ({
   const { getHeaders } = useStaff();
   const { showToast } = useNotification();
   const [applicants, setApplicants] = useState<Applicant[]>([]);
+  const [settings, setSettings] = useState<any>({});
+  const currency = settings.currency_symbol || 'LKR';
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
@@ -39,6 +41,11 @@ export const RecordIncomeModal: React.FC<RecordIncomeModalProps> = ({
 
   useEffect(() => {
     if (isOpen) {
+      fetch('/api/settings')
+        .then(res => res.json())
+        .then(data => setSettings(data || {}))
+        .catch(() => {});
+
       fetch('/api/applicants')
         .then(res => res.json())
         .then(data => {
@@ -88,7 +95,7 @@ export const RecordIncomeModal: React.FC<RecordIncomeModalProps> = ({
       });
       const data = await res.json();
       if (res.ok) {
-        showToast(`Payment of LKR ${Number(formData.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} recorded successfully (${data.receipt_no})`, 'success');
+        showToast(`Payment of ${currency} ${Number(formData.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} recorded successfully (${data.receipt_no})`, 'success');
         onSuccess(data.id);
         onClose();
       } else {
@@ -118,7 +125,7 @@ export const RecordIncomeModal: React.FC<RecordIncomeModalProps> = ({
               <h3 className="text-xl font-serif font-bold text-foreground">Record Income / Payment</h3>
             </div>
           </div>
-          <button onClick={onClose} className="btn-ghost p-1.5 rounded-lg text-muted-foreground">
+          <button onClick={onClose} aria-label="Close" className="btn-ghost p-1.5 rounded-lg text-muted-foreground">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -136,7 +143,7 @@ export const RecordIncomeModal: React.FC<RecordIncomeModalProps> = ({
               />
             </div>
             <div>
-              <label className="block text-xs font-semibold mb-1">Amount Received (LKR) *</label>
+              <label className="block text-xs font-semibold mb-1">Amount Received ({currency}) *</label>
               <input
                 type="number"
                 step="1"

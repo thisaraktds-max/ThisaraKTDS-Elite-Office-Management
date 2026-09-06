@@ -29,12 +29,20 @@ export const RemindersView: React.FC<RemindersViewProps> = ({
     stalledApplicants: any[];
     upcomingAssessments: any[];
   }>({ overdueBalances: [], stalledApplicants: [], upcomingAssessments: [] });
+  const [settings, setSettings] = useState<any>({});
+  const currency = settings.currency_symbol || 'LKR';
   const [isLoading, setIsLoading] = useState(true);
 
   const fetchReminders = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/reminders');
+      const [res, settingsRes] = await Promise.all([
+        fetch('/api/reminders'),
+        fetch('/api/settings'),
+      ]);
+      if (settingsRes.ok) {
+        setSettings(await settingsRes.json());
+      }
       const contentType = res.headers.get('content-type');
       if (res.ok && contentType && contentType.includes('application/json')) {
         const result = await res.json();
@@ -125,7 +133,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({
                     <div className="mono text-[10px] text-muted-foreground">{b.guardian_phone}</div>
                   </td>
                   <td className="text-right mono text-xs font-bold text-destructive">
-                    ${Number(b.balance).toFixed(2)}
+                    {currency} {Number(b.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </td>
                   <td>
                     <span className="badge-pill bg-destructive text-destructive-foreground !text-[9px] font-bold">

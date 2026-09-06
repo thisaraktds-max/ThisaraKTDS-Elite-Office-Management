@@ -360,6 +360,7 @@ export const HelpReferenceModal: React.FC<HelpReferenceModalProps> = ({
             </button>
             <button
               onClick={onClose}
+              aria-label="Close"
               className="p-1.5 rounded-lg hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
             >
               <X className="w-5 h-5" />

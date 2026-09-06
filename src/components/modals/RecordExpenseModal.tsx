@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
 import { useStaff } from '../../context/StaffContext';
@@ -18,7 +18,18 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
 }) => {
   const { getHeaders } = useStaff();
   const { showToast } = useNotification();
+  const [settings, setSettings] = useState<any>({});
+  const currency = settings.currency_symbol || 'LKR';
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      fetch('/api/settings')
+        .then(res => res.json())
+        .then(data => setSettings(data || {}))
+        .catch(() => {});
+    }
+  }, [isOpen]);
 
   const [formData, setFormData] = useState({
     date: new Date().toISOString().substring(0, 10),
@@ -46,7 +57,7 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
       });
       const data = await res.json();
       if (res.ok) {
-        showToast(`Expense of LKR ${Number(formData.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} recorded to ${formData.paid_to}`, 'success');
+        showToast(`Expense of ${currency} ${Number(formData.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })} recorded to ${formData.paid_to}`, 'success');
         onSuccess();
         onClose();
       } else {
@@ -85,6 +96,7 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
           </div>
           <button
             onClick={onClose}
+            aria-label="Close"
             className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -107,7 +119,7 @@ export const RecordExpenseModal: React.FC<RecordExpenseModalProps> = ({
             </div>
             <div>
               <label className="block text-xs font-semibold text-foreground mb-1.5">
-                Amount (LKR) *
+                Amount ({currency}) *
               </label>
               <input
                 type="number"
