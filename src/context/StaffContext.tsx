@@ -16,6 +16,9 @@ interface StaffContextType {
   getHeaders: () => Record<string, string>;
   // RBAC & Permission helpers
   hasRole: (roles: string[]) => boolean;
+  isAdmin: boolean;
+  isDirector: boolean;
+  isReadOnly: boolean;
   canManageFinance: boolean;
   canManageAdmissions: boolean;
   canManageSystem: boolean;
@@ -142,21 +145,29 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     return {
       'Content-Type': 'application/json',
       'x-staff-name': activeStaff ? activeStaff.name : 'Office Staff',
+      'x-staff-role': activeStaff ? activeStaff.role : '',
     };
   };
 
   // RBAC permissions based on active staff role
-  const currentRole = (activeStaff?.role || 'Office Staff').toLowerCase();
+  const roleStr = (activeStaff?.role || 'Office Staff').trim().toLowerCase();
+  const isAdmin = roleStr === 'admin' || roleStr.includes('admin');
+  const isDirector = roleStr === 'director' || roleStr.includes('director');
+  const isReadOnly = isDirector;
   
   const hasRole = (roles: string[]): boolean => {
     if (!activeStaff) return false;
+    // Admin passes every single role check with no exceptions
+    if (isAdmin) return true;
+    // Director is strictly view-only for any action-oriented role checks
+    if (isReadOnly) return false;
     const r = activeStaff.role.toLowerCase();
     return roles.some(req => r.includes(req.toLowerCase()));
   };
 
-  const canManageFinance = hasRole(['Bursar', 'Finance', 'Head of Office', 'Operations', 'Admin']);
-  const canManageAdmissions = hasRole(['Registrar', 'Admissions', 'Head of Office', 'Operations', 'Admin', 'Office Staff']);
-  const canManageSystem = hasRole(['Head of Office', 'Operations', 'Admin', 'Bursar']);
+  const canManageFinance = !isReadOnly && (isAdmin || hasRole(['Bursar', 'Finance', 'Head of Office', 'Operations', 'Principal', 'Head of School']));
+  const canManageAdmissions = !isReadOnly && (isAdmin || hasRole(['Registrar', 'Admissions', 'Head of Office', 'Operations', 'Office Staff', 'Principal', 'Head of School']));
+  const canManageSystem = !isReadOnly && (isAdmin || hasRole(['Head of Office', 'Operations', 'Bursar', 'Principal', 'Head of School']));
 
   return (
     <StaffContext.Provider
@@ -174,6 +185,9 @@ export const StaffProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         closeSwitchModal: () => setIsSwitchModalOpen(false),
         getHeaders,
         hasRole,
+        isAdmin,
+        isDirector,
+        isReadOnly,
         canManageFinance,
         canManageAdmissions,
         canManageSystem,

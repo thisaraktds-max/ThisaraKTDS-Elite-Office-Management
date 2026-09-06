@@ -28,6 +28,35 @@ interface FeesIncomeViewProps {
   onOpenDossier: (applicantId: string) => void;
 }
 
+// Helper to sort grades in logical educational sequence (Early Childhood -> Grades 1-12 -> Unspecified/Other)
+const sortGradesLogically = (a: string, b: string): number => {
+  const getWeight = (str: string) => {
+    const s = (str || '').trim().toLowerCase();
+    if (s.includes('daycare') || s.includes('playgroup')) return 1;
+    if (s.includes('nursery')) return 2;
+    if (s.includes('pre-k') || s.includes('pre-kg') || s.includes('pre kindergarten') || s.includes('pre-kindergarten')) return 3;
+    if (s.includes('lkg') || s.includes('lower kg')) return 4;
+    if (s.includes('ukg') || s.includes('upper kg')) return 5;
+    if (s.includes('kindergarten') || s.includes('kg')) return 6;
+    if (s.includes('institutional') || s.includes('general')) return 999;
+    if (s.includes('unspecified')) return 998;
+
+    // Check for numbers: Grade 1..12, Year 1..12
+    const match = s.match(/\d+/);
+    if (match) {
+      return 100 + parseInt(match[0], 10);
+    }
+    return 900;
+  };
+
+  const weightA = getWeight(a);
+  const weightB = getWeight(b);
+  if (weightA !== weightB) {
+    return weightA - weightB;
+  }
+  return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+};
+
 export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
   onOpenNewIncome,
   onOpenReceiptModal,
@@ -325,22 +354,66 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
       groups[gradeKey].count += 1;
     });
 
-    // Sort grades naturally
-    const sortedKeys = Object.keys(groups).sort((a, b) => {
-      if (a.includes('Kindergarten')) return -1;
-      if (b.includes('Kindergarten')) return 1;
-      if (a.includes('Institutional')) return 1;
-      if (b.includes('Institutional')) return -1;
-      const numA = parseInt(a.replace(/\D/g, ''), 10) || 0;
-      const numB = parseInt(b.replace(/\D/g, ''), 10) || 0;
-      return numA - numB;
-    });
+    // Sort grades in logical order
+    const sortedKeys = Object.keys(groups).sort(sortGradesLogically);
 
     return sortedKeys.map(key => ({
       grade: key,
       ...groups[key],
     }));
   }, [filteredIncome]);
+
+  // Group Fee Structures by Grade in logical order
+  const groupedFeeStructures = useMemo(() => {
+    const groups: Record<
+      string,
+      {
+        grade: string;
+        items: FeeStructure[];
+        totalAmount: number;
+        compulsoryAmount: number;
+      }
+    > = {};
+
+    feeStructures.forEach(fee => {
+      const g = fee.grade || 'Unspecified Grade';
+      if (!groups[g]) {
+        groups[g] = { grade: g, items: [], totalAmount: 0, compulsoryAmount: 0 };
+      }
+      groups[g].items.push(fee);
+      groups[g].totalAmount += Number(fee.amount) || 0;
+      if (fee.is_compulsory === 1) {
+        groups[g].compulsoryAmount += Number(fee.amount) || 0;
+      }
+    });
+
+    // Sort grades in logical educational order (Grade 1 -> Grade 12)
+    const sortedGrades = Object.keys(groups).sort(sortGradesLogically);
+
+    return sortedGrades.map(grade => {
+      const group = groups[grade];
+      // Sort items within each grade: Compulsory first, then prioritized fee types
+      group.items.sort((a, b) => {
+        if (a.is_compulsory !== b.is_compulsory) {
+          return b.is_compulsory - a.is_compulsory;
+        }
+        const getFeeTypePriority = (type: string) => {
+          const t = (type || '').toLowerCase();
+          if (t.includes('tuition')) return 1;
+          if (t.includes('registration') || t.includes('admission')) return 2;
+          if (t.includes('uniform')) return 3;
+          if (t.includes('exam')) return 4;
+          if (t.includes('laboratory') || t.includes('lab')) return 5;
+          return 10;
+        };
+        const pA = getFeeTypePriority(a.fee_type);
+        const pB = getFeeTypePriority(b.fee_type);
+        if (pA !== pB) return pA - pB;
+        return a.fee_type.localeCompare(b.fee_type);
+      });
+      return group;
+    });
+  }, [feeStructures]);
 
   return (
     <div className="space-y-6">
@@ -713,10 +786,19 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
       ) : (
         /* FEE STRUCTURE MATRIX */
         <div className="panel p-6 space-y-4 border border-border shadow-2xs">
-          <div className="flex items-center justify-between pb-3 border-b border-border">
+          <div className="flex items-center justify-between pb-3 border-b border-border flex-wrap gap-2">
             <div>
               <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Academic Pricing</div>
               <h3 className="text-base font-serif font-bold text-foreground">Standard Fee Schedules & Prescriptions</h3>
+            </div>
+            <div className="text-xs text-muted-foreground font-medium flex items-center gap-2">
+              <span className="px-2 py-0.5 rounded-md bg-muted/40 border border-border">
+                {groupedFeeStructures.length} {groupedFeeStructures.length === 1 ? 'Grade Level' : 'Grade Levels'}
+              </span>
+              <span>•</span>
+              <span className="px-2 py-0.5 rounded-md bg-muted/40 border border-border">
+                {feeStructures.length} {feeStructures.length === 1 ? 'Fee Rule' : 'Fee Rules'}
+              </span>
             </div>
           </div>
 
@@ -734,43 +816,74 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
                 </tr>
               </thead>
               <tbody>
-                {feeStructures.map(fee => (
-                  <tr key={fee.id} className="hover:bg-muted/20 transition-colors">
-                    <td className="mono text-xs text-muted-foreground">{fee.academic_year}</td>
-                    <td className="font-semibold text-xs text-foreground">{fee.grade}</td>
-                    <td className="font-medium text-xs text-primary">{fee.fee_type}</td>
-                    <td className="text-xs text-muted-foreground">{fee.description || 'Standard rate'}</td>
-                    <td>
-                      {fee.is_compulsory === 1 ? (
-                        <span className="badge badge-accepted !text-[10px]">Compulsory</span>
-                      ) : (
-                        <span className="badge badge-applied !text-[10px]">Optional</span>
-                      )}
-                    </td>
-                    <td className="text-right mono font-bold text-xs text-foreground">
-                      LKR {formatCurrency(fee.amount)}
-                    </td>
-                    <td className="text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <button
-                          onClick={() => handleOpenEditFee(fee)}
-                          className="btn btn-ghost !h-7 !px-2 text-xs inline-flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground rounded-md leading-none"
-                          title="Edit Fee Rule"
-                        >
-                          <Pencil className="w-3 h-3" />
-                          <span className="hidden sm:inline">Edit</span>
-                        </button>
-                        <button
-                          onClick={() => setFeeToDelete(fee)}
-                          className="btn btn-ghost !h-7 !px-2 text-xs inline-flex items-center justify-center gap-1 text-destructive hover:bg-destructive/10 rounded-md leading-none"
-                          title="Delete Fee Rule"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                          <span className="hidden sm:inline">Delete</span>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
+                {groupedFeeStructures.map(group => (
+                  <React.Fragment key={group.grade}>
+                    {/* Grade Section Header / Divider */}
+                    <tr className="bg-muted/50 border-t-2 border-b border-border/80 select-none">
+                      <td colSpan={7} className="py-2.5 px-4">
+                        <div className="flex items-center justify-between flex-wrap gap-2">
+                          <div className="flex items-center gap-2.5">
+                            <div className="w-6 h-6 rounded-md bg-primary/10 text-primary flex items-center justify-center">
+                              <GraduationCap className="w-3.5 h-3.5" />
+                            </div>
+                            <span className="font-serif font-bold text-sm text-foreground tracking-wide">{group.grade}</span>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-background border border-border text-muted-foreground">
+                              {group.items.length} {group.items.length === 1 ? 'fee rule' : 'fee rules'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-3 text-xs">
+                            <span className="text-muted-foreground text-[11px]">
+                              Compulsory Total: <strong className="font-mono text-foreground font-semibold">LKR {formatCurrency(group.compulsoryAmount)}</strong>
+                            </span>
+                            <span className="text-border">|</span>
+                            <span className="text-muted-foreground text-[11px]">
+                              All Prescribed Fees: <strong className="font-mono text-foreground font-bold">LKR {formatCurrency(group.totalAmount)}</strong>
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+
+                    {/* Fee rules for this grade */}
+                    {group.items.map(fee => (
+                      <tr key={fee.id} className="hover:bg-muted/20 transition-colors">
+                        <td className="mono text-xs text-muted-foreground">{fee.academic_year}</td>
+                        <td className="font-semibold text-xs text-foreground">{fee.grade}</td>
+                        <td className="font-medium text-xs text-primary">{fee.fee_type}</td>
+                        <td className="text-xs text-muted-foreground">{fee.description || 'Standard rate'}</td>
+                        <td>
+                          {fee.is_compulsory === 1 ? (
+                            <span className="badge badge-accepted !text-[10px]">Compulsory</span>
+                          ) : (
+                            <span className="badge badge-applied !text-[10px]">Optional</span>
+                          )}
+                        </td>
+                        <td className="text-right mono font-bold text-xs text-foreground">
+                          LKR {formatCurrency(fee.amount)}
+                        </td>
+                        <td className="text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleOpenEditFee(fee)}
+                              className="btn btn-ghost !h-7 !px-2 text-xs inline-flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground rounded-md leading-none"
+                              title="Edit Fee Rule"
+                            >
+                              <Pencil className="w-3 h-3" />
+                              <span className="hidden sm:inline">Edit</span>
+                            </button>
+                            <button
+                              onClick={() => setFeeToDelete(fee)}
+                              className="btn btn-ghost !h-7 !px-2 text-xs inline-flex items-center justify-center gap-1 text-destructive hover:bg-destructive/10 rounded-md leading-none"
+                              title="Delete Fee Rule"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              <span className="hidden sm:inline">Delete</span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </React.Fragment>
                 ))}
                 {feeStructures.length === 0 && (
                   <tr>

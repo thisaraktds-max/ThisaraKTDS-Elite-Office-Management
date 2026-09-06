@@ -283,5 +283,6 @@ export interface SchoolSettings {
   receipt_footer_notice: string;
   backup_folder_path: string;
   school_logo_url: string;
+  school_logo_url_thermal?: string;
   [key: string]: string | undefined;
 }

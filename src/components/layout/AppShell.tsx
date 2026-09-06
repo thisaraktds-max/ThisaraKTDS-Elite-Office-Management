@@ -57,7 +57,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   onOpenHelp,
   children,
 }) => {
-  const { activeStaff, openSwitchModal } = useStaff();
+  const { activeStaff, openSwitchModal, isReadOnly } = useStaff();
   const { notificationsList, unreadCount, markAllAsRead, clearNotifications } = useNotification();
   const [reminderCount, setReminderCount] = useState<number>(0);
   const [showNotificationsMenu, setShowNotificationsMenu] = useState(false);
@@ -306,8 +306,13 @@ export const AppShell: React.FC<AppShellProps> = ({
                   <span className="truncate">{activeStaff?.name || 'Malki Perera'}</span>
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
                 </div>
-                <div className="text-[10px] text-sidebar-foreground/60 truncate font-mono" title={activeStaff?.role || 'Office Staff'}>
-                  {activeStaff?.role || 'Office Staff'}
+                <div className="text-[10px] text-sidebar-foreground/60 truncate font-mono flex items-center gap-1.5" title={activeStaff?.role || 'Office Staff'}>
+                  <span className="truncate">{activeStaff?.role || 'Office Staff'}</span>
+                  {isReadOnly && (
+                    <span className="text-[9px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-sans font-semibold shrink-0">
+                      View Only
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -340,25 +345,33 @@ export const AppShell: React.FC<AppShellProps> = ({
           <div className="flex items-center gap-2 sm:gap-2.5 flex-shrink-0">
 
             {/* Task-Oriented Workflows */}
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={onOpenGuidedEnroll}
-                className="btn btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5 shadow-xs cursor-pointer"
-                title="Enroll a New Student (5-Step Guided Flow)"
-              >
-                <GraduationCap className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Enroll Student</span>
-              </button>
+            {!isReadOnly ? (
+              <div className="flex items-center gap-1.5">
+                <button
+                  onClick={onOpenGuidedEnroll}
+                  className="btn btn-primary text-xs py-1.5 px-3 flex items-center gap-1.5 shadow-xs cursor-pointer"
+                  title="Enroll a New Student (5-Step Guided Flow)"
+                >
+                  <GraduationCap className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Enroll Student</span>
+                </button>
 
-              <button
-                onClick={onOpenQuickPayment}
-                className="btn btn-soft text-xs py-1.5 px-2.5 flex items-center gap-1.5 border border-border hover:!bg-primary hover:!text-primary-foreground hover:!border-primary transition-all cursor-pointer group"
-                title="Walk-in Parent Payment Terminal"
-              >
-                <CreditCard className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 group-hover:text-primary-foreground" />
-                <span className="hidden sm:inline">Walk-In Payment</span>
-              </button>
-            </div>
+                <button
+                  onClick={onOpenQuickPayment}
+                  className="btn btn-soft text-xs py-1.5 px-2.5 flex items-center gap-1.5 border border-border hover:!bg-primary hover:!text-primary-foreground hover:!border-primary transition-all cursor-pointer group"
+                  title="Walk-in Parent Payment Terminal"
+                >
+                  <CreditCard className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400 group-hover:text-primary-foreground" />
+                  <span className="hidden sm:inline">Walk-In Payment</span>
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400 text-xs font-semibold">
+                <Shield className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Director: View-Only</span>
+                <span className="sm:hidden">View-Only</span>
+              </div>
+            )}
 
             <div className="h-5 w-px bg-border mx-1 hidden sm:block"></div>
 

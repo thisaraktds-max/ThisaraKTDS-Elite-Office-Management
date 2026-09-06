@@ -645,7 +645,7 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
                 </div>
 
                 {/* Cashier Signature & Official Stamp Line */}
-                <div className="mt-2.5 pt-2 border-t border-neutral-300 flex flex-col items-center text-center">
+                <div className="mt-3 flex flex-col items-center text-center">
                   <div className="w-[40mm] border-b border-black mb-1"></div>
                   <span className="text-[7.5px] uppercase tracking-wider font-mono text-neutral-700">Cashier Signature</span>
                 </div>

@@ -82,6 +82,50 @@ function logAudit(db: any, staffName: string, actionType: string, recordType: st
 }
 
 // ----------------------------------------------------
+// RBAC MIDDLEWARE: ENFORCE DIRECTOR VIEW-ONLY PROTECTION
+// ----------------------------------------------------
+// Defense-in-depth: Reject any mutating request (POST, PUT, PATCH, DELETE)
+// if the requesting staff member's role is "Director".
+apiRouter.use(async (req, res, next) => {
+  const mutatingMethods = ['POST', 'PUT', 'PATCH', 'DELETE'];
+  if (!mutatingMethods.includes(req.method.toUpperCase())) {
+    return next();
+  }
+
+  // Exempt PIN verification endpoint so staff/directors can authenticate their session
+  if (req.path === '/staff/verify-pin') {
+    return next();
+  }
+
+  const staffName = (req.headers['x-staff-name'] as string || '').trim();
+  const staffRoleHeader = (req.headers['x-staff-role'] as string || '').trim();
+
+  // Fast-path header check
+  if (staffRoleHeader && staffRoleHeader.toLowerCase().includes('director')) {
+    return res.status(403).json({
+      error: "Forbidden: Director role has view-only access across the institution and cannot modify, create, or delete records."
+    });
+  }
+
+  // Database lookup check based on x-staff-name header
+  if (staffName) {
+    try {
+      const db = await getDb();
+      const staff = queryOne(db, "SELECT role FROM staff WHERE LOWER(name) = LOWER(?)", [staffName]);
+      if (staff && staff.role && staff.role.toLowerCase().includes('director')) {
+        return res.status(403).json({
+          error: "Forbidden: Director role has view-only access across the institution and cannot modify, create, or delete records."
+        });
+      }
+    } catch (dbErr) {
+      console.error('[Director RBAC Middleware] Database error checking staff role:', dbErr);
+    }
+  }
+
+  next();
+});
+
+// ----------------------------------------------------
 // SHARED FINANCIAL & BALANCE CALCULATION UTILITIES
 // ----------------------------------------------------
 export function computeStudentAging(
@@ -530,7 +574,12 @@ apiRouter.get('/staff', async (req, res) => {
       sql += " WHERE (is_active = 1 OR is_active IS NULL) AND (active = 1 OR active IS NULL)";
     }
     sql += " ORDER BY name ASC";
-    const staff = queryAll(db, sql);
+    const staff = queryAll(db, sql).map((s: any) => ({
+      ...s,
+      has_pin: Boolean(s.has_pin),
+      active: s.active === 1 || s.active === true,
+      is_active: s.is_active === 1 || s.is_active === true,
+    }));
     res.json(staff);
   } catch (err: any) {
     if (err instanceof ValidationError || err?.name === 'ValidationError') {

@@ -1,4 +1,5 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { motion } from 'motion/react';
 import {
   ResponsiveContainer,
   ComposedChart,
@@ -14,8 +15,11 @@ import {
   ArrowUpRight,
   X,
   ChevronRight,
+  RotateCcw,
+  Activity,
 } from 'lucide-react';
 import { MonthlyFinancial } from '../../types';
+import { CountUp } from '../common/CountUp';
 
 interface MonthlyRevenueExpensesChartProps {
   data: MonthlyFinancial[];
@@ -154,6 +158,38 @@ export const MonthlyRevenueExpensesChart: React.FC<MonthlyRevenueExpensesChartPr
     expenses: true,
   });
 
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [hasEnteredView, setHasEnteredView] = useState<boolean>(false);
+  const [animKey, setAnimKey] = useState<number>(0);
+
+  // Viewport IntersectionObserver to trigger lively chart entrance on scroll
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setHasEnteredView(true);
+          setAnimKey((k) => k + 1);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.15, rootMargin: '0px 0px -40px 0px' }
+    );
+
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
+
+  const handleReplayAnimation = () => {
+    setHasEnteredView(false);
+    setTimeout(() => {
+      setHasEnteredView(true);
+      setAnimKey((k) => k + 1);
+    }, 60);
+  };
+
   // Calculate Month-over-Month percentages across data series
   const enrichedData = useMemo<EnrichedMonthlyFinancial[]>(() => {
     if (!data || data.length === 0) return [];
@@ -243,11 +279,35 @@ export const MonthlyRevenueExpensesChart: React.FC<MonthlyRevenueExpensesChartPr
   };
 
   return (
-    <div className="panel p-5 sm:p-6 bg-card border border-border rounded-2xl shadow-xs space-y-5 transition-all">
+    <motion.div
+      ref={containerRef}
+      initial={{ opacity: 0, y: 32, scale: 0.985 }}
+      whileInView={{ opacity: 1, y: 0, scale: 1 }}
+      viewport={{ once: true, amount: 0.15 }}
+      transition={{ duration: 0.7, ease: [0.16, 1, 0.3, 1] }}
+      onViewportEnter={() => {
+        if (!hasEnteredView) {
+          setHasEnteredView(true);
+          setAnimKey((k) => k + 1);
+        }
+      }}
+      className="panel p-5 sm:p-6 bg-card border border-border rounded-2xl shadow-xs space-y-5 transition-all relative overflow-hidden"
+    >
       {/* Top Header & Compact Unified Toolbar */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
         {/* Title & Description */}
         <div>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+            <span className="text-[10.5px] font-mono uppercase tracking-wider text-emerald-600 dark:text-emerald-400 font-semibold flex items-center gap-1.5">
+              <span>Live Cash Flow Telemetry</span>
+              <span className="text-border">•</span>
+              <span className="text-muted-foreground font-normal lowercase">interactive ledger</span>
+            </span>
+          </div>
           <h2 className="font-serif text-xl sm:text-2xl font-bold text-foreground tracking-tight">
             Monthly Revenue & Expenses
           </h2>
@@ -258,6 +318,16 @@ export const MonthlyRevenueExpensesChart: React.FC<MonthlyRevenueExpensesChartPr
 
         {/* Compact, Single-Row Controls Toolbar */}
         <div className="flex items-center gap-2 shrink-0">
+          {/* Replay Animation Trigger */}
+          <button
+            type="button"
+            onClick={handleReplayAnimation}
+            className="inline-flex items-center justify-center w-7.5 h-7.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted border border-border transition-all cursor-pointer"
+            title="Replay chart load animation"
+          >
+            <RotateCcw className="w-3.5 h-3.5" />
+          </button>
+
           {/* Period Toggle */}
           <div className="inline-flex items-center bg-muted/60 p-0.5 rounded-lg border border-border text-xs font-medium h-7.5">
             <button
@@ -344,13 +414,16 @@ export const MonthlyRevenueExpensesChart: React.FC<MonthlyRevenueExpensesChartPr
       {/* Metric Summary Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
         {/* Card 1: Revenue */}
-        <div
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={hasEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+          transition={{ duration: 0.45, delay: 0.08, ease: 'easeOut' }}
           onMouseEnter={() => setHoveredSeries('revenue')}
           onMouseLeave={() => setHoveredSeries(null)}
           className={`p-4 rounded-xl border transition-all cursor-pointer ${
             hoveredSeries === 'revenue'
-              ? 'border-emerald-600/60 bg-emerald-500/5 shadow-xs'
-              : 'border-border bg-card hover:border-emerald-600/30'
+              ? 'border-emerald-600/60 bg-emerald-500/5 shadow-xs -translate-y-0.5'
+              : 'border-border bg-card hover:border-emerald-600/30 hover:-translate-y-0.5'
           }`}
         >
           <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
@@ -361,22 +434,34 @@ export const MonthlyRevenueExpensesChart: React.FC<MonthlyRevenueExpensesChartPr
             <span className="text-[11px] text-muted-foreground">Period</span>
           </div>
           <div className="text-lg sm:text-xl font-bold tracking-tight text-foreground mt-2 tabular-nums">
-            {currency} {stats.totalRevenue.toLocaleString()}
+            {hasEnteredView ? (
+              <CountUp
+                key={`rev-${animKey}-${range}`}
+                value={stats.totalRevenue}
+                duration={1300}
+                prefix={`${currency} `}
+              />
+            ) : (
+              <span>{currency} {stats.totalRevenue.toLocaleString()}</span>
+            )}
           </div>
           <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
             <ArrowDownLeft className="w-3.5 h-3.5 text-emerald-600" />
             <span>Avg {currency} {stats.avgMonthlyRevenue.toLocaleString()}/mo</span>
           </div>
-        </div>
+        </motion.div>
 
         {/* Card 2: Expenses */}
-        <div
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={hasEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+          transition={{ duration: 0.45, delay: 0.16, ease: 'easeOut' }}
           onMouseEnter={() => setHoveredSeries('expenses')}
           onMouseLeave={() => setHoveredSeries(null)}
           className={`p-4 rounded-xl border transition-all cursor-pointer ${
             hoveredSeries === 'expenses'
-              ? 'border-rose-600/60 bg-rose-500/5 shadow-xs'
-              : 'border-border bg-card hover:border-rose-600/30'
+              ? 'border-rose-600/60 bg-rose-500/5 shadow-xs -translate-y-0.5'
+              : 'border-border bg-card hover:border-rose-600/30 hover:-translate-y-0.5'
           }`}
         >
           <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
@@ -387,22 +472,34 @@ export const MonthlyRevenueExpensesChart: React.FC<MonthlyRevenueExpensesChartPr
             <span className="text-[11px] text-muted-foreground">Period</span>
           </div>
           <div className="text-lg sm:text-xl font-bold tracking-tight text-foreground mt-2 tabular-nums">
-            {currency} {stats.totalExpenses.toLocaleString()}
+            {hasEnteredView ? (
+              <CountUp
+                key={`exp-${animKey}-${range}`}
+                value={stats.totalExpenses}
+                duration={1300}
+                prefix={`${currency} `}
+              />
+            ) : (
+              <span>{currency} {stats.totalExpenses.toLocaleString()}</span>
+            )}
           </div>
           <div className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
             <ArrowUpRight className="w-3.5 h-3.5 text-rose-600" />
             <span>Avg {currency} {stats.avgMonthlyExpenses.toLocaleString()}/mo</span>
           </div>
-        </div>
+        </motion.div>
 
         {/* Card 3: Net Margin */}
-        <div
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={hasEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+          transition={{ duration: 0.45, delay: 0.24, ease: 'easeOut' }}
           onMouseEnter={() => setHoveredSeries('net')}
           onMouseLeave={() => setHoveredSeries(null)}
           className={`p-4 rounded-xl border transition-all cursor-pointer ${
             hoveredSeries === 'net'
-              ? 'border-primary/60 bg-primary/5 shadow-xs'
-              : 'border-border bg-card hover:border-primary/30'
+              ? 'border-primary/60 bg-primary/5 shadow-xs -translate-y-0.5'
+              : 'border-border bg-card hover:border-primary/30 hover:-translate-y-0.5'
           }`}
         >
           <div className="flex items-center justify-between text-xs font-medium text-muted-foreground">
@@ -416,15 +513,29 @@ export const MonthlyRevenueExpensesChart: React.FC<MonthlyRevenueExpensesChartPr
               stats.isSurplus ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400'
             }`}
           >
-            {stats.isSurplus ? '+' : ''}{currency} {stats.netTotal.toLocaleString()}
+            {hasEnteredView ? (
+              <CountUp
+                key={`net-${animKey}-${range}`}
+                value={Math.abs(stats.netTotal)}
+                duration={1300}
+                prefix={`${stats.isSurplus ? '+' : '-'}${currency} `}
+              />
+            ) : (
+              <span>{stats.isSurplus ? '+' : ''}{currency} {stats.netTotal.toLocaleString()}</span>
+            )}
           </div>
           <div className="text-xs text-muted-foreground mt-1">
             {stats.isSurplus ? 'Healthy operating surplus' : 'Operating deficit'}
           </div>
-        </div>
+        </motion.div>
 
         {/* Card 4: Peak Collections */}
-        <div className="p-4 rounded-xl border border-border bg-card flex flex-col justify-between">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={hasEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+          transition={{ duration: 0.45, delay: 0.32, ease: 'easeOut' }}
+          className="p-4 rounded-xl border border-border bg-card flex flex-col justify-between hover:-translate-y-0.5 transition-all"
+        >
           <div>
             <div className="text-xs font-medium text-muted-foreground">Peak Month</div>
             {stats.topRevenueMonth ? (
@@ -433,7 +544,16 @@ export const MonthlyRevenueExpensesChart: React.FC<MonthlyRevenueExpensesChartPr
                   {stats.topRevenueMonth.fullMonth}
                 </div>
                 <div className="text-base font-bold text-emerald-600 dark:text-emerald-400 mt-0.5 tabular-nums">
-                  {currency} {stats.topRevenueMonth.revenue.toLocaleString()}
+                  {hasEnteredView ? (
+                    <CountUp
+                      key={`peak-${animKey}-${range}`}
+                      value={stats.topRevenueMonth.revenue}
+                      duration={1300}
+                      prefix={`${currency} `}
+                    />
+                  ) : (
+                    <span>{currency} {stats.topRevenueMonth.revenue.toLocaleString()}</span>
+                  )}
                 </div>
               </>
             ) : (
@@ -450,7 +570,7 @@ export const MonthlyRevenueExpensesChart: React.FC<MonthlyRevenueExpensesChartPr
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           )}
-        </div>
+        </motion.div>
       </div>
 
       {/* Interactive Month Focus Banner (when clicked or selected) */}
@@ -516,9 +636,15 @@ export const MonthlyRevenueExpensesChart: React.FC<MonthlyRevenueExpensesChartPr
       )}
 
       {/* Chart Canvas */}
-      <div className="w-full h-[320px] pt-1">
+      <motion.div
+        initial={{ opacity: 0, y: 16 }}
+        animate={hasEnteredView ? { opacity: 1, y: 0 } : { opacity: 0, y: 16 }}
+        transition={{ duration: 0.6, delay: 0.25, ease: 'easeOut' }}
+        className="w-full h-[320px] pt-1"
+      >
         <ResponsiveContainer width="100%" height="100%">
           <ComposedChart
+            key={`composed-${animKey}-${chartMode}-${range}`}
             data={displayData}
             margin={{ top: 14, right: 18, left: -6, bottom: 6 }}
             onClick={handleChartClick}
@@ -618,8 +744,10 @@ export const MonthlyRevenueExpensesChart: React.FC<MonthlyRevenueExpensesChartPr
                 fill="url(#cleanNetGradient)"
                 dot={{ r: 4, fill: '#2563eb', strokeWidth: 2, stroke: '#ffffff' }}
                 activeDot={{ r: 6.5, fill: '#2563eb', stroke: '#ffffff', strokeWidth: 2 }}
-                animationDuration={700}
-                animationEasing="ease-in-out"
+                isAnimationActive={hasEnteredView}
+                animationDuration={1300}
+                animationEasing="ease-out"
+                animationBegin={100}
               />
             )}
 
@@ -637,8 +765,10 @@ export const MonthlyRevenueExpensesChart: React.FC<MonthlyRevenueExpensesChartPr
                     fill="url(#cleanRevenueGradient)"
                     dot={{ r: 3.5, fill: '#059669', strokeWidth: 1.5, stroke: '#ffffff' }}
                     activeDot={{ r: 6.5, fill: '#059669', stroke: '#ffffff', strokeWidth: 2 }}
-                    animationDuration={700}
-                    animationEasing="ease-in-out"
+                    isAnimationActive={hasEnteredView}
+                    animationDuration={1300}
+                    animationEasing="ease-out"
+                    animationBegin={100}
                   />
                 )}
                 {visibleSeries.expenses && (
@@ -652,8 +782,10 @@ export const MonthlyRevenueExpensesChart: React.FC<MonthlyRevenueExpensesChartPr
                     fill="url(#cleanExpensesGradient)"
                     dot={{ r: 3.5, fill: '#e11d48', strokeWidth: 1.5, stroke: '#ffffff' }}
                     activeDot={{ r: 6.5, fill: '#e11d48', stroke: '#ffffff', strokeWidth: 2 }}
-                    animationDuration={700}
-                    animationEasing="ease-in-out"
+                    isAnimationActive={hasEnteredView}
+                    animationDuration={1300}
+                    animationEasing="ease-out"
+                    animationBegin={100}
                   />
                 )}
               </>
@@ -674,8 +806,10 @@ export const MonthlyRevenueExpensesChart: React.FC<MonthlyRevenueExpensesChartPr
                     fill="url(#cleanRevenueGradient)"
                     dot={{ r: 3.5, fill: '#059669', strokeWidth: 1.5, stroke: '#ffffff' }}
                     activeDot={{ r: 6.5, fill: '#059669', stroke: '#ffffff', strokeWidth: 2 }}
-                    animationDuration={700}
-                    animationEasing="ease-in-out"
+                    isAnimationActive={hasEnteredView}
+                    animationDuration={1300}
+                    animationEasing="ease-out"
+                    animationBegin={100}
                   />
                 )}
                 {visibleSeries.expenses && (
@@ -690,15 +824,17 @@ export const MonthlyRevenueExpensesChart: React.FC<MonthlyRevenueExpensesChartPr
                     fill="url(#cleanExpensesGradient)"
                     dot={{ r: 3.5, fill: '#e11d48', strokeWidth: 1.5, stroke: '#ffffff' }}
                     activeDot={{ r: 6.5, fill: '#e11d48', stroke: '#ffffff', strokeWidth: 2 }}
-                    animationDuration={700}
-                    animationEasing="ease-in-out"
+                    isAnimationActive={hasEnteredView}
+                    animationDuration={1300}
+                    animationEasing="ease-out"
+                    animationBegin={100}
                   />
                 )}
               </>
             )}
           </ComposedChart>
         </ResponsiveContainer>
-      </div>
+      </motion.div>
 
       {/* Footer Bar: Clean Legend & Action Links */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-3 border-t border-border gap-3 text-xs">
@@ -771,6 +907,6 @@ export const MonthlyRevenueExpensesChart: React.FC<MonthlyRevenueExpensesChartPr
           )}
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };

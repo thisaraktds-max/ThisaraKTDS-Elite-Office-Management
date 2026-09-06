@@ -87,6 +87,7 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
 
 const AppContent: React.FC = () => {
   const { showToast } = useNotification();
+  const { isReadOnly } = useStaff();
 
   // Navigation state
   const [currentView, setCurrentView] = useState<string>('dashboard');
@@ -118,15 +119,19 @@ const AppContent: React.FC = () => {
         setShowGlobalSearch((prev) => !prev);
       } else if (e.altKey && e.key.toLowerCase() === 'e') {
         e.preventDefault();
-        setShowGuidedEnroll(true);
+        if (!isReadOnly) {
+          setShowGuidedEnroll(true);
+        }
       } else if (e.altKey && e.key.toLowerCase() === 'p') {
         e.preventDefault();
-        setShowQuickPayment(true);
+        if (!isReadOnly) {
+          setShowQuickPayment(true);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isReadOnly]);
 
   const handleNavigate = (view: string, idOrFilter?: string) => {
     let normalized = view;

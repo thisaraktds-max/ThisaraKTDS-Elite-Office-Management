@@ -73,7 +73,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onOpenNewIncome,
   onOpenNewExpense,
 }) => {
-  const { activeStaff } = useStaff();
+  const { activeStaff, isReadOnly } = useStaff();
   const [data, setData] = useState<any>(null);
   const [reminders, setReminders] = useState<RemindersData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -450,13 +450,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 </span>
               </div>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={onOpenNewIncome}
-                  className="btn btn-soft text-xs py-1 px-2.5 rounded-lg border border-border flex items-center gap-1 cursor-pointer hover:bg-muted"
-                >
-                  <Plus className="w-3 h-3" />
-                  <span>Record payment</span>
-                </button>
+                {!isReadOnly && (
+                  <button
+                    onClick={onOpenNewIncome}
+                    className="btn btn-soft text-xs py-1 px-2.5 rounded-lg border border-border flex items-center gap-1 cursor-pointer hover:bg-muted"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>Record payment</span>
+                  </button>
+                )}
                 <button
                   onClick={() => onNavigate('fees')}
                   className="text-xs font-semibold text-primary hover:text-primary/80 transition-colors flex items-center gap-1 cursor-pointer"
@@ -744,8 +746,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         data={data?.monthlyFinancials || data?.monthlyTrends || []}
         currency={currency}
         onNavigate={onNavigate}
-        onOpenNewIncome={onOpenNewIncome}
-        onOpenNewExpense={onOpenNewExpense}
+        onOpenNewIncome={!isReadOnly ? onOpenNewIncome : undefined}
+        onOpenNewExpense={!isReadOnly ? onOpenNewExpense : undefined}
       />
 
       {/* Two Lower Columns: Admissions Pulse & Office Reminders */}

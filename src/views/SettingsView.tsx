@@ -5,6 +5,7 @@ import { useNotification } from '../context/NotificationContext';
 import { SchoolSettings, Staff } from '../types';
 import { TableSkeleton } from '../components/common/SkeletonLoader';
 import { EmptyState } from '../components/common/EmptyState';
+import { generateMonochromeThermalLogo } from '../utils/thermalPrinter';
 import {
   Settings,
   Building,
@@ -35,6 +36,7 @@ import {
   Upload,
   Image as ImageIcon,
   ImageOff,
+  Receipt,
 } from 'lucide-react';
 
 interface SettingsViewProps {
@@ -164,7 +166,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
     reader.onload = async () => {
       if (typeof reader.result === 'string') {
         const base64Data = reader.result as string;
-        const updatedSettings = { ...settings, school_logo_url: base64Data };
+        let thermalMonochrome = '';
+        try {
+          thermalMonochrome = await generateMonochromeThermalLogo(base64Data);
+        } catch {
+          thermalMonochrome = base64Data;
+        }
+
+        const updatedSettings = { 
+          ...settings, 
+          school_logo_url: base64Data,
+          school_logo_url_thermal: thermalMonochrome 
+        };
         setSettings(updatedSettings);
 
         // Save immediately to settings
@@ -172,16 +185,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
           const res = await fetch('/api/settings', {
             method: 'POST',
             headers: getHeaders(),
-            body: JSON.stringify({ school_logo_url: base64Data }),
+            body: JSON.stringify({ 
+              school_logo_url: base64Data,
+              school_logo_url_thermal: thermalMonochrome
+            }),
           });
           if (res.ok) {
-            showToast('School logo uploaded and saved successfully', 'success');
+            showToast('School logo uploaded and optimized for thermal printing', 'success');
             window.dispatchEvent(new CustomEvent('school_settings_updated'));
             fetchSettings();
           } else {
             showToast('Failed to save uploaded logo', 'error');
           }
-        } catch (err) {
+        } catch {
           showToast('Failed to save uploaded logo', 'error');
         }
       }
@@ -190,7 +206,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
   };
 
   const handleRemoveLogo = async () => {
-    const updatedSettings = { ...settings, school_logo_url: '' };
+    const updatedSettings = { ...settings, school_logo_url: '', school_logo_url_thermal: '' };
     setSettings(updatedSettings);
     if (logoFileInputRef.current) {
       logoFileInputRef.current.value = '';
@@ -199,7 +215,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
       const res = await fetch('/api/settings', {
         method: 'POST',
         headers: getHeaders(),
-        body: JSON.stringify({ school_logo_url: '' }),
+        body: JSON.stringify({ school_logo_url: '', school_logo_url_thermal: '' }),
       });
       if (res.ok) {
         showToast('School logo removed', 'success');
@@ -208,7 +224,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
       } else {
         showToast('Failed to remove logo', 'error');
       }
-    } catch (err) {
+    } catch {
       showToast('Failed to remove logo', 'error');
     }
   };
@@ -822,21 +838,49 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
               <h4 className="font-serif font-bold text-sm text-foreground">Official Institutional Logo & Crest</h4>
             </div>
 
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-6">
-              {/* Logo Preview / Fallback Box */}
-              <div className="w-28 h-28 rounded-2xl border-2 border-dashed border-border/80 bg-muted/30 p-2 flex flex-col items-center justify-center relative overflow-hidden group shrink-0 shadow-xs">
-                {settings.school_logo_url ? (
-                  <img
-                    src={settings.school_logo_url}
-                    alt="School Logo Preview"
-                    className="w-full h-full object-contain"
-                  />
-                ) : (
-                  <div className="flex flex-col items-center text-center p-2 text-muted-foreground">
-                    <ImageOff className="w-7 h-7 mb-1 stroke-1 text-muted-foreground/60" />
-                    <span className="text-[10px] font-mono leading-tight">No Logo Uploaded</span>
+            <div className="flex flex-col md:flex-row items-start gap-6">
+              {/* Dual Previews */}
+              <div className="flex items-center gap-4 shrink-0">
+                {/* 1. Original Logo Preview */}
+                <div className="flex flex-col items-center">
+                  <div className="w-28 h-28 rounded-2xl border-2 border-dashed border-border/80 bg-muted/30 p-2 flex flex-col items-center justify-center relative overflow-hidden group shrink-0 shadow-xs">
+                    {settings.school_logo_url ? (
+                      <img
+                        src={settings.school_logo_url}
+                        alt="School Logo Preview"
+                        className="w-full h-full object-contain"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center text-center p-2 text-muted-foreground">
+                        <ImageOff className="w-7 h-7 mb-1 stroke-1 text-muted-foreground/60" />
+                        <span className="text-[10px] font-mono leading-tight">No Logo Uploaded</span>
+                      </div>
+                    )}
                   </div>
-                )}
+                  <span className="text-[10px] font-medium text-muted-foreground mt-1.5">Original (Docs/UI)</span>
+                </div>
+
+                {/* 2. 80mm POS Thermal Monochrome Preview */}
+                <div className="flex flex-col items-center">
+                  <div className="w-28 h-28 rounded-2xl border-2 border-solid border-neutral-300 dark:border-neutral-700 bg-white p-2 flex flex-col items-center justify-center relative overflow-hidden shrink-0 shadow-xs">
+                    {(settings.school_logo_url_thermal || settings.school_logo_url) ? (
+                      <img
+                        src={settings.school_logo_url_thermal || settings.school_logo_url}
+                        alt="Thermal Monochrome Preview"
+                        className="w-full h-full object-contain filter grayscale contrast-125"
+                      />
+                    ) : (
+                      <div className="flex flex-col items-center text-center p-2 text-neutral-400">
+                        <Receipt className="w-6 h-6 mb-1 text-neutral-400" />
+                        <span className="text-[9px] font-mono leading-tight">Thermal 1-Bit</span>
+                      </div>
+                    )}
+                  </div>
+                  <span className="text-[10px] font-medium text-muted-foreground mt-1.5 flex items-center gap-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                    80mm Thermal
+                  </span>
+                </div>
               </div>
 
               {/* Upload Controls & Actions */}
@@ -879,8 +923,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
 
                 {/* Helper Guidance Note */}
                 <div className="p-3 bg-muted/40 rounded-xl border border-border/70 text-[11px] text-muted-foreground leading-relaxed">
-                  <span className="font-semibold text-foreground">Receipt Printing Guidance: </span>
-                  For best results on thermal receipt printing, use a simple black-and-white or high-contrast logo — thermal printers cannot print color or fine gradients, and detailed/photographic logos may print poorly or illegibly.
+                  <span className="font-semibold text-foreground">Automatic 1-Bit Monochrome Optimization: </span>
+                  When you upload a logo, the system automatically converts it into a high-contrast 1-bit dithered monochrome image specifically tailored for thermal POS printheads (80mm / 58mm) to eliminate blurry gray fades and prevent paper burn-through.
                 </div>
               </div>
             </div>

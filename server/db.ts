@@ -1,4 +1,4 @@
-import initSqlJs, { Database } from 'sql.js';
+import initSqlJs, { type Database } from 'sql.js';
 import fs from 'fs';
 import path from 'path';
 import bcrypt from 'bcryptjs';
@@ -342,6 +342,7 @@ function initSchema(db: Database): void {
     // Ensure default settings include auto-lock timeout, threshold, and school_logo_url
     try {
       db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('school_logo_url', '')");
+      db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('school_logo_url_thermal', '')");
       db.run("DELETE FROM settings WHERE key = 'crest_icon'");
       db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('default_opening_float', '50000.00')");
       db.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('session_timeout_minutes', '10')");
@@ -362,6 +363,33 @@ function initSchema(db: Database): void {
     } catch (e) {
       // Ignore
     }
+  }
+
+  // Ensure "Thisara De Silva" (Admin) and "Prof. Mangala De Silva" (Director) exist in staff table
+  try {
+    const existingThisara = db.exec("SELECT id FROM staff WHERE name = 'Thisara De Silva' OR role = 'Admin'");
+    if (!existingThisara.length || !existingThisara[0].values?.length) {
+      db.run(
+        "INSERT INTO staff (id, name, role, email, phone, pin, avatar_initials, photo_url, active, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?)",
+        ['stf_admin_1', 'Thisara De Silva', 'Admin', 'thisara.desilva@eliteschool.lk', '+94 77 678 9012', null, 'TD', '', new Date().toISOString()]
+      );
+      console.log('[Database Migration] Seeded Admin profile: Thisara De Silva (No PIN)');
+    }
+  } catch (e) {
+    console.error('[Database Migration] Error ensuring Admin staff exists:', e);
+  }
+
+  try {
+    const existingDirector = db.exec("SELECT id FROM staff WHERE name = 'Prof. Mangala De Silva' OR role = 'Director'");
+    if (!existingDirector.length || !existingDirector[0].values?.length) {
+      db.run(
+        "INSERT INTO staff (id, name, role, email, phone, pin, avatar_initials, photo_url, active, is_active, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 1, 1, ?)",
+        ['stf_director_1', 'Prof. Mangala De Silva', 'Director', 'm.desilva@eliteschool.lk', '+94 77 789 0123', null, 'MD', '', new Date().toISOString()]
+      );
+      console.log('[Database Migration] Seeded Director profile: Prof. Mangala De Silva (No PIN)');
+    }
+  } catch (e) {
+    console.error('[Database Migration] Error ensuring Director staff exists:', e);
   }
 
   // Ensure cash flow sample records exist for the current week and rolling 8-week history
@@ -574,7 +602,8 @@ export function seedInitialData(db: Database): void {
     ['stalled_applicant_threshold_days', '14'],
     ['receipt_footer_notice', 'Thank you for your payment. Please retain this receipt for your records. Elite International School, 1/143, Akuressa Road, Matara, Sri Lanka • +94 70 699 9333 • office@eis.lk'],
     ['backup_folder_path', ''],
-    ['school_logo_url', '']
+    ['school_logo_url', ''],
+    ['school_logo_url_thermal', '']
   ];
 
   for (const [k, v] of settings) {
@@ -588,6 +617,8 @@ export function seedInitialData(db: Database): void {
     ['stf_3', 'Sophia Chen', 'Admissions Officer', 's.chen@eliteschool.lk', '+94 77 345 6789', defaultHashedPin, 'SC', 1, now],
     ['stf_4', 'Dr. Arthur Pendelton', 'Head of Office & Operations', 'a.pendelton@eliteschool.lk', '+94 77 456 7890', defaultHashedPin, 'AP', 1, now],
     ['stf_5', 'Eleanor Vance', 'Registrar', 'e.vance@eliteschool.lk', '+94 77 567 8901', defaultHashedPin, 'EV', 1, now],
+    ['stf_admin_1', 'Thisara De Silva', 'Admin', 'thisara.desilva@eliteschool.lk', '+94 77 678 9012', null, 'TD', 1, now],
+    ['stf_director_1', 'Prof. Mangala De Silva', 'Director', 'm.desilva@eliteschool.lk', '+94 77 789 0123', null, 'MD', 1, now],
   ];
 
   for (const s of staffMembers) {

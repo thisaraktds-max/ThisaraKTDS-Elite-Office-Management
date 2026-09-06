@@ -52,7 +52,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
   onOpenBulkImport,
   initialStatusFilter,
 }) => {
-  const { getHeaders } = useStaff();
+  const { getHeaders, isReadOnly } = useStaff();
   const { showToast, showUndoToast } = useNotification();
 
   const [applicants, setApplicants] = useState<Applicant[]>([]);
@@ -446,24 +446,28 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
             </button>
           </div>
 
-          {onOpenBulkImport && (
-            <button
-              onClick={onOpenBulkImport}
-              className="btn btn-soft text-xs py-2 px-3 flex items-center gap-1.5 rounded-lg border border-border hover:bg-muted cursor-pointer"
-              title="Bulk Import Existing Students via CSV or Excel"
-            >
-              <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-              <span className="hidden sm:inline">Import CSV/Excel</span>
-            </button>
-          )}
+          {!isReadOnly && (
+            <>
+              {onOpenBulkImport && (
+                <button
+                  onClick={onOpenBulkImport}
+                  className="btn btn-soft text-xs py-2 px-3 flex items-center gap-1.5 rounded-lg border border-border hover:bg-muted cursor-pointer"
+                  title="Bulk Import Existing Students via CSV or Excel"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                  <span className="hidden sm:inline">Import CSV/Excel</span>
+                </button>
+              )}
 
-          <button
-            onClick={onOpenNewApplicant}
-            className="btn btn-primary text-xs py-2 px-3 flex items-center gap-1.5 rounded-lg cursor-pointer"
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>Register Applicant</span>
-          </button>
+              <button
+                onClick={onOpenNewApplicant}
+                className="btn btn-primary text-xs py-2 px-3 flex items-center gap-1.5 rounded-lg cursor-pointer"
+              >
+                <UserPlus className="w-3.5 h-3.5" />
+                <span>Register Applicant</span>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -553,7 +557,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       </div>
 
       {/* Floating Bulk Action Bar */}
-      {selectedIds.size > 0 && (
+      {selectedIds.size > 0 && !isReadOnly && (
         <div className="p-3 bg-primary text-primary-foreground rounded-2xl shadow-xl flex flex-wrap items-center justify-between gap-3 animate-fade">
           <div className="flex items-center gap-2.5 text-xs font-semibold">
             <span className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center font-mono text-[11px]">
@@ -666,7 +670,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         </div>
 
                         {/* Quick Advance Button */}
-                        {stage.next && (
+                        {stage.next && !isReadOnly && (
                           <div className="mt-2.5 pt-2 border-t border-border flex justify-end">
                             <button
                               onClick={(e) => handleUpdateStatus(app.id, stage.next!, e)}
@@ -858,8 +862,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                         iconType="applicants"
                         title="No Applicants Found"
                         description="No matching student applications found for the selected filters."
-                        actionLabel="Register Applicant"
-                        onAction={onOpenNewApplicant}
+                        actionLabel={!isReadOnly ? "Register Applicant" : undefined}
+                        onAction={!isReadOnly ? onOpenNewApplicant : undefined}
                       />
                     </td>
                   </tr>
@@ -934,8 +938,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                 iconType="applicants"
                 title="No Applicants Found"
                 description="No matching student applications found for the selected filters."
-                actionLabel="Register Applicant"
-                onAction={onOpenNewApplicant}
+                actionLabel={!isReadOnly ? "Register Applicant" : undefined}
+                onAction={!isReadOnly ? onOpenNewApplicant : undefined}
               />
             </div>
           )}
