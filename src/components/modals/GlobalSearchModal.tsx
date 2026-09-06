@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useLockBodyScroll } from '../../hooks/useLockBodyScroll';
+import { formatCurrency } from '../../utils/format';
 import {
   Search,
   User,
@@ -441,7 +442,7 @@ export const GlobalSearchModal: React.FC<GlobalSearchModalProps> = ({
                           <Receipt className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
                           <div>
                             <div className="font-semibold font-mono text-foreground">
-                              {inc.receipt_no} - LKR {inc.amount.toLocaleString()}
+                              {inc.receipt_no} - LKR {formatCurrency(inc.amount)}
                             </div>
                             <div className="text-[11px] text-muted-foreground">
                               Paid by {inc.payer_name} • {inc.date} ({inc.payment_method})

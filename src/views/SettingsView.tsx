@@ -1,7 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useStaff } from '../context/StaffContext';
 import { useNotification } from '../context/NotificationContext';
 import { SchoolSettings, Staff } from '../types';
+import { TableSkeleton } from '../components/common/SkeletonLoader';
+import { EmptyState } from '../components/common/EmptyState';
 import {
   Settings,
   Building,
@@ -100,7 +103,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
   const [newStaffRequirePin, setNewStaffRequirePin] = useState(true);
 
   const fetchSettings = async () => {
-    setIsLoading(true);
     try {
       const res = await fetch('/api/settings');
       if (res.ok) {
@@ -109,8 +111,6 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
       }
     } catch (err) {
       console.error('Failed to load settings:', err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -127,8 +127,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
   };
 
   useEffect(() => {
-    fetchSettings();
-    fetchAllStaff();
+    const loadData = async () => {
+      setIsLoading(true);
+      await Promise.all([fetchSettings(), fetchAllStaff()]);
+      setIsLoading(false);
+    };
+    loadData();
   }, []);
 
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -613,8 +617,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
           </div>
 
           {/* Clean Staff Table: NO vertical inner scroll, Deactivate strictly right-aligned */}
-          <div className="table-wrap">
-            <table className="w-full">
+          {isLoading ? (
+            <div className="p-4">
+              <TableSkeleton rows={4} columns={5} />
+            </div>
+          ) : (
+            <div className="table-wrap">
+              <table className="w-full">
               <thead>
                 <tr>
                   <th className="w-64">Staff Member</th>
@@ -693,7 +702,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
                       <td>
                         <div className="text-xs space-y-0.5">
                           {staff.email ? (
-                            <div className="text-foreground truncate max-w-xs">{staff.email}</div>
+                            <div className="text-foreground truncate max-w-[280px] sm:max-w-md" title={staff.email}>{staff.email}</div>
                           ) : (
                             <span className="text-muted-foreground text-[11px]">No email registered</span>
                           )}
@@ -707,18 +716,18 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
                       <td>
                         {isStaffActive ? (
                           staff.has_pin ? (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 whitespace-nowrap">
                               <KeyRound className="w-3 h-3 text-emerald-600 dark:text-emerald-400" />
                               <span>PIN Protected</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+                            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-medium bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 whitespace-nowrap">
                               <ShieldAlert className="w-3 h-3 text-amber-600 dark:text-amber-400" />
                               <span>No PIN Required</span>
                             </span>
                           )
                         ) : (
-                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground">
+                          <span className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[10px] font-medium bg-muted text-muted-foreground whitespace-nowrap">
                             <span>Inactive</span>
                           </span>
                         )}
@@ -779,11 +788,29 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
                     </tr>
                   );
                 })}
+                {(allStaff.length > 0 ? allStaff : staffList).length === 0 && (
+                  <tr>
+                    <td colSpan={5} className="p-6">
+                      <EmptyState
+                        iconType="general"
+                        title="No Staff Profiles Found"
+                        description="No staff profiles registered yet. Add staff members to manage role permissions."
+                        actionLabel="Add Staff Profile"
+                        onAction={() => {
+                          setNewStaffForm({ name: '', role: 'Admissions Officer', email: '', phone: '', pin: '', photo_url: '' });
+                          setNewStaffRequirePin(true);
+                          setShowAddStaffModal(true);
+                        }}
+                      />
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
-        </div>
-      )}
+        )}
+      </div>
+    )}
 
       {/* TAB 2: SCHOOL PROFILE & POLICIES */}
       {activeTab === 'school' && (
@@ -1239,7 +1266,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
       )}
 
       {/* Add Staff Modal */}
-      {showAddStaffModal && (
+      {showAddStaffModal && createPortal(
         <div className="modal-backdrop" onClick={() => setShowAddStaffModal(false)}>
           <div className="modal !max-w-md" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between pb-2 border-b border-border mb-3">
@@ -1423,11 +1450,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Set PIN Modal */}
-      {pinModalStaff && (
+      {pinModalStaff && createPortal(
         <div className="modal-backdrop" onClick={() => setPinModalStaff(null)}>
           <div className="modal !max-w-sm" onClick={e => e.stopPropagation()}>
             <div className="eyebrow">Security PIN</div>
@@ -1457,11 +1485,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Edit Staff Modal */}
-      {editingStaff && (
+      {editingStaff && createPortal(
         <div className="modal-backdrop" onClick={() => setEditingStaff(null)}>
           <div className="modal !max-w-md" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between pb-2 border-b border-border mb-3">
@@ -1598,11 +1627,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Deactivate Staff Confirmation Modal */}
-      {deactivatingStaff && (
+      {deactivatingStaff && createPortal(
         <div className="modal-backdrop" onClick={() => setDeactivatingStaff(null)}>
           <div className="modal !max-w-md border border-destructive/30" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-2 text-destructive font-serif font-bold text-base mb-1">
@@ -1648,11 +1678,12 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Clear Demo Data Confirmation Modal */}
-      {showClearDataModal && (
+      {showClearDataModal && createPortal(
         <div className="modal-backdrop" onClick={() => setShowClearDataModal(false)}>
           <div className="modal !max-w-md border border-destructive/40" onClick={e => e.stopPropagation()}>
             <div className="flex items-center gap-2 text-destructive font-serif font-bold text-base mb-1">
@@ -1715,7 +1746,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({ onOpenBulkImport }) 
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

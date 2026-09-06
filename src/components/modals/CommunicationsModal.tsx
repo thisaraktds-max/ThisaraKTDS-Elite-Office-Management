@@ -39,7 +39,7 @@ export const CommunicationsModal: React.FC<CommunicationsModalProps> = ({
     school_name: 'Elite International School',
     tagline: 'Scientia est Infinita',
     motto: 'To empower young minds with knowledge, skills, and values to create a future-ready generation.',
-    address: '1/143, Akuressa Road, Matara, Sri Lanka',
+    address: '',
     phone: '+94 70 699 9333',
     email: 'office@eis.lk',
     whatsapp_number: '+94706999333',

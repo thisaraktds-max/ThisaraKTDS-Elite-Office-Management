@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useStaff } from '../context/StaffContext';
 import { useNotification } from '../context/NotificationContext';
 import { Asset } from '../types';
 import { TableSkeleton } from '../components/common/SkeletonLoader';
 import { EmptyState } from '../components/common/EmptyState';
+import { formatCurrency } from '../utils/format';
 import {
   Package,
   Plus,
@@ -253,17 +255,17 @@ export const AssetsView: React.FC = () => {
   const getConditionBadge = (condition: Asset['condition']) => {
     switch (condition) {
       case 'New':
-        return <span className="badge-pill bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-medium">New</span>;
+        return <span className="badge-pill whitespace-nowrap bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 border border-emerald-500/20 font-medium">New</span>;
       case 'Good':
-        return <span className="badge-pill bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20 font-medium">Good</span>;
+        return <span className="badge-pill whitespace-nowrap bg-blue-500/10 text-blue-700 dark:text-blue-400 border border-blue-500/20 font-medium">Good</span>;
       case 'Fair':
-        return <span className="badge-pill bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 font-medium">Fair</span>;
+        return <span className="badge-pill whitespace-nowrap bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20 font-medium">Fair</span>;
       case 'Poor':
-        return <span className="badge-pill bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20 font-medium">Poor</span>;
+        return <span className="badge-pill whitespace-nowrap bg-rose-500/10 text-rose-700 dark:text-rose-400 border border-rose-500/20 font-medium">Poor</span>;
       case 'Retired':
-        return <span className="badge-pill bg-muted text-muted-foreground border border-border font-medium">Retired</span>;
+        return <span className="badge-pill whitespace-nowrap bg-muted text-muted-foreground border border-border font-medium">Retired</span>;
       default:
-        return <span className="badge-pill">{condition}</span>;
+        return <span className="badge-pill whitespace-nowrap">{condition}</span>;
     }
   };
 
@@ -309,7 +311,7 @@ export const AssetsView: React.FC = () => {
             <DollarSign className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
           </div>
           <div className="text-xl font-bold font-mono text-foreground">
-            LKR {summary.totalActiveValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            LKR {formatCurrency(summary.totalActiveValue)}
           </div>
           <div className="text-[11px] text-muted-foreground mt-1 flex items-center gap-1">
             <span className="font-semibold text-emerald-600 dark:text-emerald-400">{summary.activeCount}</span> active items in service
@@ -462,7 +464,7 @@ export const AssetsView: React.FC = () => {
                       )}
                     </td>
                     <td className="py-3 px-4">
-                      <span className="badge-pill bg-muted font-medium text-foreground/80">
+                      <span className="badge-pill whitespace-nowrap bg-muted font-medium text-foreground/80">
                         {asset.category}
                       </span>
                     </td>
@@ -477,7 +479,7 @@ export const AssetsView: React.FC = () => {
                       {asset.purchase_date}
                     </td>
                     <td className="py-3 px-4 text-right font-mono font-bold text-foreground">
-                      LKR {asset.purchase_price.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                      LKR {formatCurrency(asset.purchase_price)}
                     </td>
                     <td className="py-3 px-4 text-muted-foreground text-[11px]">
                       {asset.created_by}
@@ -518,7 +520,7 @@ export const AssetsView: React.FC = () => {
       </div>
 
       {/* Add / Edit Asset Modal */}
-      {showModal && (
+      {showModal && createPortal(
         <div className="modal-backdrop" onClick={() => setShowModal(false)}>
           <div className="modal !max-w-lg space-y-4" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between border-b border-border pb-3">
@@ -644,11 +646,12 @@ export const AssetsView: React.FC = () => {
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Delete Confirmation Dialog */}
-      {deletingAsset && (
+      {deletingAsset && createPortal(
         <div className="modal-backdrop" onClick={() => setDeletingAsset(null)}>
           <div className="modal !max-w-sm space-y-4 text-center" onClick={(e) => e.stopPropagation()}>
             <div className="w-12 h-12 rounded-full bg-destructive/10 text-destructive flex items-center justify-center mx-auto">
@@ -673,7 +676,8 @@ export const AssetsView: React.FC = () => {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

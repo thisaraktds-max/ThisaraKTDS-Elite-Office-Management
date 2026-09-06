@@ -11,6 +11,9 @@ import {
   DollarSign,
   History,
 } from 'lucide-react';
+import { CardSkeleton, TableSkeleton } from '../components/common/SkeletonLoader';
+import { EmptyState } from '../components/common/EmptyState';
+import { formatCurrency } from '../utils/format';
 
 export const CashDrawerView: React.FC = () => {
   const { getHeaders } = useStaff();
@@ -134,7 +137,7 @@ export const CashDrawerView: React.FC = () => {
             />
           </div>
           {isLocked && (
-            <span className="badge-pill bg-emerald-700 text-white text-xs flex items-center gap-1">
+            <span className="badge-pill whitespace-nowrap bg-emerald-700 text-white text-xs flex items-center gap-1">
               <Lock className="w-3 h-3" />
               <span>Locked & Balanced</span>
             </span>
@@ -143,181 +146,197 @@ export const CashDrawerView: React.FC = () => {
       </div>
 
       {/* Main Reconciliation Worksheet */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left 2 Cols: Calculation Worksheet */}
-        <div className="lg:col-span-2 panel p-6 space-y-5">
-          <div className="flex items-center justify-between pb-3 border-b border-border">
-            <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Balancing Worksheet for {date}</div>
-            <div className="mono text-xs text-muted-foreground font-semibold">
-              Cash Transactions Count: {reconData?.cashTransactions?.length || 0}
-            </div>
+      {isLoading ? (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 panel p-6 space-y-4">
+            <CardSkeleton count={4} />
+            <TableSkeleton rows={3} columns={3} />
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Step 1: Opening Float */}
-            <div className="p-4 rounded-xl bg-muted/20 border border-border space-y-2">
-              <label className="block text-xs font-semibold text-muted-foreground">
-                1. Starting Opening Cash Float (LKR)
-              </label>
-              <input
-                type="number"
-                step="1"
-                disabled={isLocked}
-                className="input font-mono font-bold text-lg"
-                value={openingCash}
-                onChange={e => setOpeningCash(e.target.value)}
-              />
-              <p className="text-[10px] text-muted-foreground">Morning drawer base reserve</p>
-            </div>
-
-            {/* Step 2: System Cash Inflow */}
-            <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/30 space-y-2">
-              <span className="block text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                2. System Cash Inflows (+)
-              </span>
-              <div className="mono font-bold text-lg text-emerald-600 dark:text-emerald-400">
-                +LKR {cashIn.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              </div>
-              <p className="text-[10px] text-muted-foreground">Fee receipts recorded as 'Cash'</p>
-            </div>
-
-            {/* Step 3: System Cash Outflow */}
-            <div className="p-4 rounded-xl bg-destructive/5 border border-destructive/30 space-y-2">
-              <span className="block text-xs font-semibold text-destructive">
-                3. System Cash Outflows (-)
-              </span>
-              <div className="mono font-bold text-lg text-destructive">
-                -LKR {cashOut.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              </div>
-              <p className="text-[10px] text-muted-foreground">Office expenses paid via Cash</p>
-            </div>
-
-            {/* Step 4: System Expected Cash */}
-            <div className="p-4 rounded-xl bg-primary/5 border border-primary/30 space-y-2">
-              <span className="block text-xs font-semibold text-primary">
-                4. Computed System Expected Cash
-              </span>
-              <div className="mono font-bold text-lg text-primary">
-                =LKR {systemExpected.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-              </div>
-              <p className="text-[10px] text-muted-foreground">Opening + Inflow - Outflow</p>
-            </div>
+          <div className="panel p-5 space-y-4">
+            <TableSkeleton rows={4} columns={2} />
           </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* Left 2 Cols: Calculation Worksheet */}
+          <div className="lg:col-span-2 panel p-6 space-y-5">
+            <div className="flex items-center justify-between pb-3 border-b border-border">
+              <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Balancing Worksheet for {date}</div>
+              <div className="mono text-xs text-muted-foreground font-semibold">
+                Cash Transactions Count: {reconData?.cashTransactions?.length || 0}
+              </div>
+            </div>
 
-          {/* Physical Count & Discrepancy Box */}
-          <div className="p-5 rounded-xl bg-card border-2 border-border space-y-4">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
-              <div>
-                <label className="block text-xs font-bold text-foreground mb-1">
-                  5. Physical Cash Drawer Count (LKR) *
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {/* Step 1: Opening Float */}
+              <div className="p-4 rounded-xl bg-muted/20 border border-border space-y-2">
+                <label className="block text-xs font-semibold text-muted-foreground">
+                  1. Starting Opening Cash Float (LKR)
                 </label>
                 <input
                   type="number"
                   step="1"
-                  placeholder="Enter counted amount..."
                   disabled={isLocked}
-                  className="input font-mono font-bold text-xl"
-                  value={physicalCount}
-                  onChange={e => setPhysicalCount(e.target.value)}
+                  className="input font-mono font-bold text-lg"
+                  value={openingCash}
+                  onChange={e => setOpeningCash(e.target.value)}
                 />
-                <p className="text-[11px] text-muted-foreground mt-1">
-                  Total notes and coins physically counted in drawer at close of business.
-                </p>
+                <p className="text-[10px] text-muted-foreground">Morning drawer base reserve</p>
               </div>
 
-              <div className="p-4 rounded-xl bg-muted/40 text-center">
-                <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block">Reconciliation Discrepancy</span>
-                {isCountEntered ? (
-                  <>
-                    <div className={`mono text-2xl font-bold mt-1 ${
-                      discrepancy === 0 ? 'text-emerald-600 dark:text-emerald-400' : discrepancy > 0 ? 'text-primary' : 'text-destructive'
+              {/* Step 2: System Cash Inflow */}
+              <div className="p-4 rounded-xl bg-emerald-500/5 border border-emerald-500/30 space-y-2">
+                <span className="block text-xs font-semibold text-emerald-600 dark:text-emerald-400">
+                  2. System Cash Inflows (+)
+                </span>
+                <div className="mono font-bold text-lg text-emerald-600 dark:text-emerald-400">
+                  +LKR {formatCurrency(cashIn)}
+                </div>
+                <p className="text-[10px] text-muted-foreground">Fee receipts recorded as 'Cash'</p>
+              </div>
+
+              {/* Step 3: System Cash Outflow */}
+              <div className="p-4 rounded-xl bg-destructive/5 border border-destructive/30 space-y-2">
+                <span className="block text-xs font-semibold text-destructive">
+                  3. System Cash Outflows (-)
+                </span>
+                <div className="mono font-bold text-lg text-destructive">
+                  -LKR {formatCurrency(cashOut)}
+                </div>
+                <p className="text-[10px] text-muted-foreground">Office expenses paid via Cash</p>
+              </div>
+
+              {/* Step 4: System Expected Cash */}
+              <div className="p-4 rounded-xl bg-primary/5 border border-primary/30 space-y-2">
+                <span className="block text-xs font-semibold text-primary">
+                  4. Computed System Expected Cash
+                </span>
+                <div className="mono font-bold text-lg text-primary">
+                  =LKR {formatCurrency(systemExpected)}
+                </div>
+                <p className="text-[10px] text-muted-foreground">Opening + Inflow - Outflow</p>
+              </div>
+            </div>
+
+            {/* Physical Count & Discrepancy Box */}
+            <div className="p-5 rounded-xl bg-card border-2 border-border space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 items-center">
+                <div>
+                  <label className="block text-xs font-bold text-foreground mb-1">
+                    5. Physical Cash Drawer Count (LKR) *
+                  </label>
+                  <input
+                    type="number"
+                    step="1"
+                    placeholder="Enter counted amount..."
+                    disabled={isLocked}
+                    className="input font-mono font-bold text-xl"
+                    value={physicalCount}
+                    onChange={e => setPhysicalCount(e.target.value)}
+                  />
+                  <p className="text-[11px] text-muted-foreground mt-1">
+                    Total notes and coins physically counted in drawer at close of business.
+                  </p>
+                </div>
+
+                <div className="p-4 rounded-xl bg-muted/40 text-center">
+                  <span className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider block">Reconciliation Discrepancy</span>
+                  {isCountEntered ? (
+                    <>
+                      <div className={`mono text-2xl font-bold mt-1 ${
+                        discrepancy === 0 ? 'text-emerald-600 dark:text-emerald-400' : discrepancy > 0 ? 'text-primary' : 'text-destructive'
+                      }`}>
+                        {discrepancy >= 0 ? '+' : ''}LKR {formatCurrency(discrepancy)}
+                      </div>
+                      <span className="text-[11px] font-medium block mt-0.5">
+                        {discrepancy === 0 ? '✓ Perfectly Balanced' : discrepancy > 0 ? 'Surplus Float' : 'Shortage in Drawer'}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <div className="mono text-2xl font-bold mt-1 text-muted-foreground">
+                        —
+                      </div>
+                      <span className="text-[11px] font-medium text-muted-foreground block mt-0.5">
+                        Awaiting Physical Count
+                      </span>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold mb-1">Reconciliation Notes / Explanation</label>
+                <textarea
+                  disabled={isLocked}
+                  className="textarea !h-16"
+                  placeholder="Reason for discrepancy, petty cash replenishment notes..."
+                  value={notes}
+                  onChange={e => setNotes(e.target.value)}
+                />
+              </div>
+
+              {!isLocked && (
+                <div className="flex justify-end gap-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleSaveAndLock(false)}
+                    className="btn btn-soft text-xs"
+                  >
+                    Save Draft
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleSaveAndLock(true)}
+                    className="btn btn-primary text-xs flex items-center gap-1.5"
+                  >
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Lock & Reconcile Day</span>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Right 1 Col: Historical Reconciliations */}
+          <div className="panel p-5 space-y-3">
+            <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Audit Trail</div>
+            <h4 className="font-serif font-bold text-sm text-foreground">Past Daily Balancing Logs</h4>
+
+            <div className="space-y-2 overflow-y-auto max-h-[500px] pr-1">
+              {history.map(h => (
+                <div
+                  key={h.id}
+                  onClick={() => setDate(h.date)}
+                  className={`p-3 rounded-lg border text-xs cursor-pointer transition-all ${
+                    h.date === date ? 'border-primary bg-primary/5' : 'border-border bg-card hover:bg-muted/40'
+                  }`}
+                >
+                  <div className="flex items-center justify-between font-semibold text-foreground mb-1">
+                    <span className="mono">{h.date}</span>
+                    <span className={`mono text-[11px] font-bold ${
+                      h.discrepancy === 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'
                     }`}>
-                      {discrepancy >= 0 ? '+' : ''}LKR {discrepancy.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                    </div>
-                    <span className="text-[11px] font-medium block mt-0.5">
-                      {discrepancy === 0 ? '✓ Perfectly Balanced' : discrepancy > 0 ? 'Surplus Float' : 'Shortage in Drawer'}
+                      {h.discrepancy === 0 ? 'LKR 0.00 balanced' : `${h.discrepancy > 0 ? '+' : ''}LKR ${formatCurrency(h.discrepancy)}`}
                     </span>
-                  </>
-                ) : (
-                  <>
-                    <div className="mono text-2xl font-bold mt-1 text-muted-foreground">
-                      —
-                    </div>
-                    <span className="text-[11px] font-medium text-muted-foreground block mt-0.5">
-                      Awaiting Physical Count
-                    </span>
-                  </>
-                )}
-              </div>
+                  </div>
+                  <div className="flex justify-between text-[10px] text-muted-foreground">
+                    <span>Count: LKR {formatCurrency(h.physically_counted_cash)}</span>
+                    <span>By: {h.reconciled_by_staff_name}</span>
+                  </div>
+                </div>
+              ))}
+              {history.length === 0 && (
+                <EmptyState
+                  title="No Past Balancing Logs"
+                  description="No daily cash drawer reconciliations have been recorded yet."
+                  iconType="general"
+                />
+              )}
             </div>
-
-            <div>
-              <label className="block text-xs font-semibold mb-1">Reconciliation Notes / Explanation</label>
-              <textarea
-                disabled={isLocked}
-                className="textarea !h-16"
-                placeholder="Reason for discrepancy, petty cash replenishment notes..."
-                value={notes}
-                onChange={e => setNotes(e.target.value)}
-              />
-            </div>
-
-            {!isLocked && (
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => handleSaveAndLock(false)}
-                  className="btn btn-soft text-xs"
-                >
-                  Save Draft
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleSaveAndLock(true)}
-                  className="btn btn-primary text-xs flex items-center gap-1.5"
-                >
-                  <Lock className="w-3.5 h-3.5" />
-                  <span>Lock & Reconcile Day</span>
-                </button>
-              </div>
-            )}
           </div>
         </div>
-
-        {/* Right 1 Col: Historical Reconciliations */}
-        <div className="panel p-5 space-y-3">
-          <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Audit Trail</div>
-          <h4 className="font-serif font-bold text-sm text-foreground">Past Daily Balancing Logs</h4>
-
-          <div className="space-y-2 overflow-y-auto max-h-[500px] pr-1">
-            {history.map(h => (
-              <div
-                key={h.id}
-                onClick={() => setDate(h.date)}
-                className={`p-3 rounded-lg border text-xs cursor-pointer transition-all ${
-                  h.date === date ? 'border-primary bg-primary/5' : 'border-border bg-card hover:bg-muted/40'
-                }`}
-              >
-                <div className="flex items-center justify-between font-semibold text-foreground mb-1">
-                  <span className="mono">{h.date}</span>
-                  <span className={`mono text-[11px] font-bold ${
-                    h.discrepancy === 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'
-                  }`}>
-                    {h.discrepancy === 0 ? 'LKR 0.00 balanced' : `${h.discrepancy > 0 ? '+' : ''}LKR ${Number(h.discrepancy).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
-                  </span>
-                </div>
-                <div className="flex justify-between text-[10px] text-muted-foreground">
-                  <span>Count: LKR {Number(h.physically_counted_cash).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-                  <span>By: {h.reconciled_by_staff_name}</span>
-                </div>
-              </div>
-            ))}
-            {history.length === 0 && (
-              <p className="text-xs text-muted-foreground py-4 text-center">No past reconciliation logs.</p>
-            )}
-          </div>
-        </div>
-      </div>
+      )}
     </div>
   );
 };

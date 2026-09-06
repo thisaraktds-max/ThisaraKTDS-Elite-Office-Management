@@ -6,7 +6,7 @@ interface EmptyStateProps {
   description: string;
   actionLabel?: string;
   onAction?: () => void;
-  iconType?: 'applicants' | 'ledger' | 'balance' | 'search' | 'documents' | 'family';
+  iconType?: 'applicants' | 'ledger' | 'balance' | 'search' | 'documents' | 'family' | 'general';
 }
 
 export const EmptyState: React.FC<EmptyStateProps> = ({
@@ -64,6 +64,12 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
             <circle cx="28" cy="28" r="16" className="text-primary" />
             <line x1="40" y1="40" x2="54" y2="54" className="text-accent stroke-[3]" />
             <line x1="22" y1="28" x2="34" y2="28" className="text-muted-foreground" />
+          </svg>
+        )}
+        {iconType === 'general' && (
+          <svg viewBox="0 0 64 64" fill="none" className="w-full h-full stroke-current" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="32" cy="32" r="22" className="text-primary" />
+            <path d="M32 20v14l8 6" className="text-accent stroke-[2.5]" />
           </svg>
         )}
       </div>

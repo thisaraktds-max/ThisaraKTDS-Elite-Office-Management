@@ -205,7 +205,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   const sections = ['Overview', 'Admissions', 'Bursary & Finance', 'Operations', 'Administration'];
 
   const schoolDisplayName = settings.school_name || 'Elite International School';
-  const schoolDisplayTagline = settings.tagline || 'Matara';
+  const schoolDisplayTagline = settings.tagline || 'Admissions & Finance';
 
   const getPageTitle = () => {
     if (currentView === 'dossier') return 'Applicant Dossier & Records';
@@ -238,7 +238,7 @@ export const AppShell: React.FC<AppShellProps> = ({
               <h1 className="font-serif font-bold text-[13.5px] leading-[1.22] text-sidebar-foreground tracking-tight line-clamp-2">
                 {schoolDisplayName}
               </h1>
-              <p className="text-[10px] uppercase font-mono tracking-widest text-sidebar-foreground/60 mt-1 font-medium truncate">
+              <p className="text-[10px] uppercase font-mono tracking-widest text-sidebar-foreground/60 mt-1 font-medium truncate" title={schoolDisplayTagline}>
                 {schoolDisplayTagline}
               </p>
             </div>
@@ -301,12 +301,12 @@ export const AppShell: React.FC<AppShellProps> = ({
                   activeStaff?.avatar_initials || 'MP'
                 )}
               </div>
-              <div className="overflow-hidden">
-                <div className="text-xs font-semibold text-sidebar-foreground truncate flex items-center gap-1.5">
-                  {activeStaff?.name || 'Malki Perera'}
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold text-sidebar-foreground truncate flex items-center gap-1.5" title={activeStaff?.name || 'Malki Perera'}>
+                  <span className="truncate">{activeStaff?.name || 'Malki Perera'}</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0"></span>
                 </div>
-                <div className="text-[10px] text-sidebar-foreground/60 truncate font-mono">
+                <div className="text-[10px] text-sidebar-foreground/60 truncate font-mono" title={activeStaff?.role || 'Office Staff'}>
                   {activeStaff?.role || 'Office Staff'}
                 </div>
               </div>

@@ -3,6 +3,7 @@ import { useStaff } from '../context/StaffContext';
 import { CountUp } from '../components/common/CountUp';
 import { CardSkeleton, TableSkeleton } from '../components/common/SkeletonLoader';
 import { EmptyState } from '../components/common/EmptyState';
+import { formatCurrency } from '../utils/format';
 import { MonthlyRevenueExpensesChart } from '../components/dashboard/MonthlyRevenueExpensesChart';
 import {
   BookOpen,
@@ -186,7 +187,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         title: item.student_name,
         subtitle: `${item.title} — ${item.grade || 'Student'}`,
         applicantId: item.applicant_id,
-        badge: `${currency} ${(item.amount_due || 0).toLocaleString()}`,
+        badge: `${currency} ${formatCurrency(item.amount_due || 0)}`,
       });
     });
     (reminders.stalledApplicants || []).forEach((item) => {
@@ -504,7 +505,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </div>
                     <div className="text-right">
                       <div className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                        +{currency} {Number(item.amount).toLocaleString()}
+                        +{currency} {formatCurrency(item.amount)}
                       </div>
                       <div className="text-[10px] text-muted-foreground">
                         {item.received_by_staff_name || 'Staff'}
@@ -575,7 +576,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </div>
                     <div className="text-right">
                       <div className="font-mono font-bold text-destructive">
-                        -{currency} {Number(item.amount).toLocaleString()}
+                        -{currency} {formatCurrency(item.amount)}
                       </div>
                       <div className="text-[10px] text-muted-foreground">
                         {item.recorded_by_staff_name || 'Staff'}
@@ -651,7 +652,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                               : 'text-destructive'
                           }`}
                         >
-                          {isIncome ? '+' : '-'}{currency} {Number(item.amount).toLocaleString()}
+                          {isIncome ? '+' : '-'}{currency} {formatCurrency(item.amount)}
                         </div>
                       </div>
                     </div>
@@ -723,7 +724,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     </div>
                     <div className="text-right">
                       <div className="font-mono font-bold text-destructive">
-                        {currency} {Number(item.balance || item.balanceDue).toLocaleString()}
+                        {currency} {formatCurrency(item.balance || item.balanceDue)}
                       </div>
                       <div className="text-[10px] text-muted-foreground flex items-center justify-end gap-1">
                         <span>Open dossier</span>

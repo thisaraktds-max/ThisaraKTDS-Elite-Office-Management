@@ -3,6 +3,7 @@ import { StudentBalance } from '../types';
 import { useNotification } from '../context/NotificationContext';
 import { TableSkeleton } from '../components/common/SkeletonLoader';
 import { EmptyState } from '../components/common/EmptyState';
+import { formatCurrency } from '../utils/format';
 import {
   Scale,
   Search,
@@ -236,7 +237,7 @@ export const BalancesView: React.FC<BalancesViewProps> = ({
             Total Outstanding Receivable
           </div>
           <div className="mono text-2xl font-bold text-destructive mt-1">
-            LKR {totalOutstanding.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            LKR {formatCurrency(totalOutstanding)}
           </div>
           <p className="text-xs text-muted-foreground mt-1">Across all active student accounts</p>
         </div>
@@ -574,17 +575,17 @@ export const BalancesView: React.FC<BalancesViewProps> = ({
                       </div>
                     </td>
                     <td className="py-2.5 px-3 text-right font-mono text-xs font-medium whitespace-nowrap">
-                      {Number(b.expected).toLocaleString()}
+                      {formatCurrency(b.expected)}
                     </td>
                     <td className="py-2.5 px-3 text-right font-mono text-xs text-primary font-semibold whitespace-nowrap">
-                      {Number(b.paid).toLocaleString()}
+                      {formatCurrency(b.paid)}
                       <span className="text-[10px] text-muted-foreground ml-1">
                         ({b.percentPaid}%)
                       </span>
                     </td>
                     <td className="py-2.5 px-3 text-right font-mono text-xs font-bold whitespace-nowrap">
                       <span className={b.balance > 0 ? 'text-destructive' : 'text-primary'}>
-                        {Number(b.balance).toLocaleString()}
+                        {formatCurrency(b.balance)}
                       </span>
                     </td>
                     <td className="py-2.5 px-3 text-center whitespace-nowrap">

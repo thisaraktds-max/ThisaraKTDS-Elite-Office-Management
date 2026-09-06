@@ -4,6 +4,7 @@ import { useNotification } from '../context/NotificationContext';
 import { FeeStructure, Income } from '../types';
 import { TableSkeleton } from '../components/common/SkeletonLoader';
 import { EmptyState } from '../components/common/EmptyState';
+import { formatCurrency } from '../utils/format';
 import {
   Receipt,
   Plus,
@@ -462,7 +463,7 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
             </div>
 
             <div className="text-xs text-muted-foreground font-mono">
-              Filtered Total: <strong className="text-emerald-600 dark:text-emerald-400 font-bold text-sm">LKR {totalIncomeSum.toLocaleString('en-US', { minimumFractionDigits: 2 })}</strong>
+              Filtered Total: <strong className="text-emerald-600 dark:text-emerald-400 font-bold text-sm">LKR {formatCurrency(totalIncomeSum)}</strong>
             </div>
           </div>
 
@@ -498,7 +499,7 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
                         <div className="text-right">
                           <span className="text-[10px] text-muted-foreground uppercase tracking-wider block">Grade Total</span>
                           <span className="font-mono font-bold text-xs sm:text-sm text-emerald-600 dark:text-emerald-400">
-                            LKR {group.total.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            LKR {formatCurrency(group.total)}
                           </span>
                         </div>
                       </div>
@@ -552,7 +553,7 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
                                 </td>
                                 <td className="text-xs text-muted-foreground">{inc.received_by_staff_name}</td>
                                 <td className="text-right mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
-                                  +LKR {Number(inc.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                  +LKR {formatCurrency(inc.amount)}
                                 </td>
                                 <td className="text-right">
                                   <div className="flex items-center justify-end gap-1.5">
@@ -658,7 +659,7 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
                         </td>
                         <td className="text-xs text-muted-foreground">{inc.received_by_staff_name}</td>
                         <td className="text-right mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
-                          +LKR {Number(inc.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                          +LKR {formatCurrency(inc.amount)}
                         </td>
                         <td className="text-right">
                           <div className="flex items-center justify-end gap-1.5">
@@ -747,7 +748,7 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
                       )}
                     </td>
                     <td className="text-right mono font-bold text-xs text-foreground">
-                      LKR {Number(fee.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      LKR {formatCurrency(fee.amount)}
                     </td>
                     <td className="text-right">
                       <div className="flex items-center justify-end gap-1.5">
@@ -1074,7 +1075,7 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
         variant="danger"
         isConfirming={isDeletingFee}
         warningDetails={[
-          `Amount: LKR ${Number(feeToDelete?.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
+          `Amount: LKR ${formatCurrency(feeToDelete?.amount || 0)}`,
           'This removes this fee prescription from the institutional structure matrix.',
           "This affects every student's expected-fee calculation for this grade and academic year going forward.",
           'Historical payments and receipts already issued will not be altered.',
@@ -1093,7 +1094,7 @@ export const FeesIncomeView: React.FC<FeesIncomeViewProps> = ({
         variant="danger"
         isConfirming={isDeletingIncome}
         warningDetails={[
-          `Amount to be reversed: LKR ${Number(incomeToDelete?.amount || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} (${incomeToDelete?.payment_method || 'Payment'})`,
+          `Amount to be reversed: LKR ${formatCurrency(incomeToDelete?.amount || 0)} (${incomeToDelete?.payment_method || 'Payment'})`,
           'This removes the payment from school revenue, income ledger, and cash flow reports.',
           'The linked student balance will immediately increase by this amount.',
           'Any linked installment schedules will automatically re-calculate and show as pending.',

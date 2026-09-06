@@ -34,6 +34,9 @@ import {
   Printer,
 } from 'lucide-react';
 import { ConfirmDialogModal } from '../components/modals/ConfirmDialogModal';
+import { TableSkeleton, CardSkeleton } from '../components/common/SkeletonLoader';
+import { EmptyState } from '../components/common/EmptyState';
+import { formatCurrency } from '../utils/format';
 
 interface ApplicantDossierViewProps {
   applicantId: string;
@@ -170,10 +173,34 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
     }
   }, [applicantId]);
 
-  if (isLoading || !dossier?.applicant) {
+  if (isLoading) {
     return (
-      <div className="py-20 text-center text-muted-foreground text-sm font-sans">
-        Loading student dossier and academic records...
+      <div className="space-y-6 animate-fade p-6">
+        <div className="p-6 rounded-2xl bg-card border border-border/80 space-y-4">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-muted/60 animate-pulse" />
+            <div className="space-y-2 flex-1">
+              <div className="h-6 w-48 bg-muted/80 rounded animate-pulse" />
+              <div className="h-4 w-32 bg-muted/50 rounded animate-pulse" />
+            </div>
+          </div>
+        </div>
+        <CardSkeleton count={5} />
+        <TableSkeleton rows={4} columns={5} />
+      </div>
+    );
+  }
+
+  if (!dossier?.applicant) {
+    return (
+      <div className="p-6">
+        <EmptyState
+          title="Student Dossier Not Found"
+          description="The requested student profile or dossier could not be located in the institutional database."
+          actionLabel="Return to Directory"
+          onAction={onBack}
+          iconType="applicants"
+        />
       </div>
     );
   }
@@ -722,7 +749,7 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
                     }`}
                     title={
                       tab.balanceDue > 0
-                        ? `Balance Due: ${currency} ${tab.balanceDue.toLocaleString()}`
+                        ? `Balance Due: ${currency} ${formatCurrency(tab.balanceDue)}`
                         : 'Account Settled'
                     }
                   />
@@ -1295,24 +1322,24 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
             <div className="p-4 rounded-xl bg-card border border-border">
               <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-wider block mb-1">1. Gross Charges</span>
-              <span className="font-mono font-bold text-base text-foreground block">{currency} {Number(financials.totalGross).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              <span className="font-mono font-bold text-base text-foreground block">{currency} {formatCurrency(financials.totalGross)}</span>
             </div>
             <div className="p-4 rounded-xl bg-card border border-border">
               <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-wider block mb-1">2. Abatements</span>
-              <span className="font-mono font-bold text-base text-primary block">-{currency} {Number(financials.discountTotal).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              <span className="font-mono font-bold text-base text-primary block">-{currency} {formatCurrency(financials.discountTotal)}</span>
             </div>
             <div className="p-4 rounded-xl bg-card border border-border">
               <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-wider block mb-1">3. Net Expected</span>
-              <span className="font-mono font-bold text-base text-foreground block">{currency} {Number(financials.expectedNet).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              <span className="font-mono font-bold text-base text-foreground block">{currency} {formatCurrency(financials.expectedNet)}</span>
             </div>
             <div className="p-4 rounded-xl bg-card border border-border">
               <span className="text-[10px] font-mono font-semibold text-muted-foreground uppercase tracking-wider block mb-1">4. Payments Credited</span>
-              <span className="font-mono font-bold text-base text-primary block">{currency} {Number(financials.paidTotal).toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
+              <span className="font-mono font-bold text-base text-primary block">{currency} {formatCurrency(financials.paidTotal)}</span>
             </div>
             <div className="p-4 rounded-xl bg-card border border-primary/40 bg-primary/5">
               <span className="text-[10px] font-mono font-semibold text-primary uppercase tracking-wider block mb-1">5. Outstanding Due</span>
               <span className={`font-mono font-bold text-base block ${financials.balanceDue > 0 ? 'text-destructive' : 'text-primary'}`}>
-                {currency} {Number(financials.balanceDue).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                {currency} {formatCurrency(financials.balanceDue)}
               </span>
             </div>
           </div>
@@ -1410,7 +1437,7 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
                 <h4 className="text-sm font-bold text-foreground">Applied Scholarships & Institutional Discounts</h4>
               </div>
               <span className="badge badge-soft text-[10px] font-mono whitespace-nowrap">
-                Total Abatements: -{currency} {Number(financials.discountTotal || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                Total Abatements: -{currency} {formatCurrency(financials.discountTotal || 0)}
               </span>
             </div>
 
@@ -1438,7 +1465,7 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
                       <td className="mono font-bold text-xs text-primary">
                         {sch.discount_type === 'percentage'
                           ? `${sch.value}% off tuition`
-                          : `${currency} ${Number(sch.value).toLocaleString('en-US', { minimumFractionDigits: 2 })}`}
+                          : `${currency} ${formatCurrency(sch.value)}`}
                       </td>
                       <td className="text-xs text-muted-foreground max-w-xs truncate">{sch.justification || 'Standard discount'}</td>
                       <td className="text-xs text-muted-foreground">{sch.approved_by || 'Admissions / Bursar'}</td>
@@ -1492,7 +1519,7 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
                       <td className="text-xs font-medium text-foreground">{p.payer_name}</td>
                       <td className="text-xs text-muted-foreground">{p.received_by_staff_name}</td>
                       <td className="text-right font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
-                        +{currency} {Number(p.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        +{currency} {formatCurrency(p.amount)}
                       </td>
                       <td className="text-right whitespace-nowrap">
                         {onOpenReceiptModal && (
@@ -1573,8 +1600,8 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
                     <td className="font-mono text-xs text-muted-foreground">{inst.installment_number}</td>
                     <td className="font-semibold text-xs text-foreground">{inst.title}</td>
                     <td className="font-mono text-xs">{inst.due_date}</td>
-                    <td className="font-mono text-xs font-bold">{currency} {Number(inst.amount_due).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
-                    <td className="font-mono text-xs text-emerald-600 dark:text-emerald-400 font-semibold">{currency} {Number(inst.amount_paid).toLocaleString('en-US', { minimumFractionDigits: 2 })}</td>
+                    <td className="font-mono text-xs font-bold">{currency} {formatCurrency(inst.amount_due)}</td>
+                    <td className="font-mono text-xs text-emerald-600 dark:text-emerald-400 font-semibold">{currency} {formatCurrency(inst.amount_paid)}</td>
                     <td>
                       <span className={`badge ${
                         inst.status === 'Paid' ? 'badge-accepted' : inst.status === 'Overdue' ? 'badge-declined' : 'badge-applied'
@@ -1908,7 +1935,7 @@ export const ApplicantDossierView: React.FC<ApplicantDossierViewProps> = ({
         variant="danger"
         isConfirming={isDeletingScholarship}
         warningDetails={[
-          `Discount Value: ${scholarshipToDelete?.discount_type === 'percentage' ? `${scholarshipToDelete?.value}% off standard tuition` : `${currency} ${Number(scholarshipToDelete?.value || 0).toLocaleString('en-US', { minimumFractionDigits: 2 })} fixed`}`,
+          `Discount Value: ${scholarshipToDelete?.discount_type === 'percentage' ? `${scholarshipToDelete?.value}% off standard tuition` : `${currency} ${formatCurrency(scholarshipToDelete?.value || 0)} fixed`}`,
           'Removing this concession will immediately increase the net tuition expected and student outstanding balance due.',
           'Any active installment plans will need to be re-evaluated to adjust for the revised net tuition.',
           'This removal will be recorded permanently in the staff audit trail.',

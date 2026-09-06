@@ -57,7 +57,7 @@ export const GuidedEnrollmentModal: React.FC<GuidedEnrollmentModalProps> = ({
     guardian_relationship: 'Father',
     guardian_phone: '',
     guardian_email: '',
-    address: 'Matara, Southern Province',
+    address: '',
     emergency_contact: '',
     emergency_phone: '',
     emergency_relationship: 'Mother',

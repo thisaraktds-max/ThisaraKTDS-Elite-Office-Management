@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useStaff } from '../context/StaffContext';
 import { useNotification } from '../context/NotificationContext';
 import { Applicant, AdmissionStatus } from '../types';
@@ -822,7 +823,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
                       </td>
                       <td className="text-xs font-medium">{app.grade_applying}</td>
                       <td>
-                        <span className={`badge badge-${app.status}`}>
+                        <span className={`badge badge-${app.status} whitespace-nowrap`}>
                           {app.status.replace('_', ' ')}
                         </span>
                       </td>
@@ -882,7 +883,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               >
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <span className={`badge badge-${app.status}`}>
+                    <span className={`badge badge-${app.status} whitespace-nowrap`}>
                       {app.status.replace('_', ' ')}
                     </span>
                     <span className="font-mono text-xs text-muted-foreground font-semibold">
@@ -942,7 +943,7 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
       )}
 
       {/* Bulk Status Change Modal */}
-      {showBulkStatusModal && (
+      {showBulkStatusModal && createPortal(
         <div
           className="modal-backdrop"
           onClick={() => setShowBulkStatusModal(false)}
@@ -991,11 +992,12 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Bulk Communication Modal */}
-      {showBulkCommModal && (
+      {showBulkCommModal && createPortal(
         <div
           className="modal-backdrop animate-fade"
           onClick={() => setShowBulkCommModal(false)}
@@ -1069,7 +1071,8 @@ export const AdmissionsView: React.FC<AdmissionsViewProps> = ({
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Bulk Delete Confirm Dialog */}

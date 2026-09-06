@@ -47,7 +47,7 @@ export const NewApplicantModal: React.FC<NewApplicantModalProps> = ({
     guardian_phone: '',
     guardian_email: '',
     guardian_relationship: 'Father',
-    address: 'Matara, Sri Lanka',
+    address: '',
     family_id: '',
     notes: '',
     blood_group: 'O+',

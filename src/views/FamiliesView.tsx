@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useStaff } from '../context/StaffContext';
 import { useNotification } from '../context/NotificationContext';
 import { Family } from '../types';
 import { CardSkeleton } from '../components/common/SkeletonLoader';
 import { EmptyState } from '../components/common/EmptyState';
+import { formatCurrency } from '../utils/format';
 import {
   Users,
   Home,
@@ -275,7 +277,7 @@ export const FamiliesView: React.FC<{ onOpenDossier: (id: string) => void }> = (
                           <GraduationCap className="w-3.5 h-3.5 text-primary" />
                           <span>{st.first_name} {st.last_name} ({st.grade_applying})</span>
                         </span>
-                        <span className={`badge badge-${st.status} !text-[9px]`}>{st.status}</span>
+                        <span className={`badge badge-${st.status} !text-[9px] whitespace-nowrap`}>{st.status}</span>
                       </div>
                     ))}
                     {(!fam.students || fam.students.length === 0) && (
@@ -287,7 +289,7 @@ export const FamiliesView: React.FC<{ onOpenDossier: (id: string) => void }> = (
 
               <div className="pt-3 border-t border-border flex items-center justify-between text-xs">
                 <span className="text-muted-foreground font-mono text-[10px]">
-                  Total Credited: <strong className="text-foreground">{currency} {Number(fam.total_paid || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                  Total Credited: <strong className="text-foreground">{currency} {formatCurrency(fam.total_paid || 0)}</strong>
                 </span>
               </div>
             </div>
@@ -307,7 +309,7 @@ export const FamiliesView: React.FC<{ onOpenDossier: (id: string) => void }> = (
       )}
 
       {/* Add / Edit Household Modal */}
-      {showAddModal && (
+      {showAddModal && createPortal(
         <div
           className="modal-backdrop"
           onClick={() => {
@@ -425,7 +427,8 @@ export const FamiliesView: React.FC<{ onOpenDossier: (id: string) => void }> = (
               </div>
             </form>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Delete Household Confirmation Modal */}

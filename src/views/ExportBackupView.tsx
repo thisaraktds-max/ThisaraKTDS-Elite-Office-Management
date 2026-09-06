@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStaff } from '../context/StaffContext';
 import { useNotification } from '../context/NotificationContext';
 import * as XLSX from 'xlsx';
@@ -10,7 +10,10 @@ import {
   CheckCircle,
   HardDrive,
   AlertTriangle,
+  History,
 } from 'lucide-react';
+import { TableSkeleton } from '../components/common/SkeletonLoader';
+import { EmptyState } from '../components/common/EmptyState';
 
 export const ExportBackupView: React.FC = () => {
   const { getHeaders } = useStaff();
@@ -18,6 +21,28 @@ export const ExportBackupView: React.FC = () => {
   const [isExportingExcel, setIsExportingExcel] = useState(false);
   const [isExportingJson, setIsExportingJson] = useState(false);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(true);
+
+  const fetchLogs = async () => {
+    setIsLoadingLogs(true);
+    try {
+      const res = await fetch('/api/audit-logs?limit=50');
+      if (res.ok) {
+        const data = await res.json();
+        const logs = Array.isArray(data) ? data : data.logs || [];
+        setAuditLogs(logs.filter((l: any) => l.action_type === 'backup' || l.action_type === 'restore' || l.entity_type === 'system'));
+      }
+    } catch (err) {
+      console.error('Failed to load logs:', err);
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchLogs();
+  }, []);
 
   // Download raw SQLite database file
   const handleDownloadSqlite = () => {
@@ -230,6 +255,53 @@ export const ExportBackupView: React.FC = () => {
             </label>
           </div>
         </div>
+      </div>
+
+      {/* Archival Activity & System Log */}
+      <div className="panel p-5 space-y-3">
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Audit Trail</div>
+            <h4 className="font-serif font-bold text-sm text-foreground">Recent Backup & Archival Activities</h4>
+          </div>
+        </div>
+
+        {isLoadingLogs ? (
+          <TableSkeleton rows={3} columns={4} />
+        ) : auditLogs.length === 0 ? (
+          <EmptyState
+            title="No Backup Logs Found"
+            description="System backup and restore events will appear here once executed."
+            iconType="general"
+          />
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="table-clean w-full">
+              <thead>
+                <tr>
+                  <th>Timestamp</th>
+                  <th>Staff Member</th>
+                  <th>Action</th>
+                  <th>Event Description</th>
+                </tr>
+              </thead>
+              <tbody>
+                {auditLogs.map((log) => (
+                  <tr key={log.id}>
+                    <td className="mono text-xs text-muted-foreground">{new Date(log.timestamp).toLocaleString()}</td>
+                    <td className="font-medium text-xs text-foreground">{log.staff_name}</td>
+                    <td>
+                      <span className="badge-pill bg-primary/10 text-primary text-[10px] font-semibold uppercase">
+                        {log.action_type}
+                      </span>
+                    </td>
+                    <td className="text-xs text-muted-foreground">{log.details}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

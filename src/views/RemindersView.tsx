@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { TableSkeleton } from '../components/common/SkeletonLoader';
 import { EmptyState } from '../components/common/EmptyState';
+import { formatCurrency } from '../utils/format';
 import {
   Bell,
   AlertTriangle,
@@ -67,13 +68,13 @@ export const RemindersView: React.FC<RemindersViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="flex items-center justify-between p-4 rounded-xl bg-card border border-border">
+      <div className="flex items-start justify-between p-4 rounded-xl bg-card border border-border">
         <div>
           <div className="eyebrow">Proactive Office Intelligence</div>
           <h3 className="text-lg font-serif font-bold text-foreground">Actionable Alerts & Reminders</h3>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="mono text-xs font-bold px-3 py-1 rounded-full bg-destructive/10 text-destructive border border-destructive/20">
+        <div className="flex items-center gap-2 mt-0.5">
+          <span className="mono text-xs font-bold px-3 py-1 rounded-full bg-destructive/10 text-destructive border border-destructive/20 whitespace-nowrap">
             {totalAlerts} Pending Action Items
           </span>
         </div>
@@ -88,9 +89,9 @@ export const RemindersView: React.FC<RemindersViewProps> = ({
         <>
           {/* Section 1: Overdue Balances & Tuition Delinquencies */}
       <div className="panel p-5 space-y-4">
-        <div className="flex items-center justify-between pb-2 border-b border-border">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center">
+        <div className="flex items-start justify-between pb-2 border-b border-border">
+          <div className="flex items-start gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-destructive/10 text-destructive flex items-center justify-center shrink-0 mt-0.5">
               <AlertTriangle className="w-4 h-4" />
             </div>
             <div>
@@ -98,7 +99,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({
               <p className="text-xs text-muted-foreground">Accounts with unpaid balances past term settlement deadline</p>
             </div>
           </div>
-          <span className="mono text-xs font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground">
+          <span className="mono text-xs font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground whitespace-nowrap mt-0.5">
             {data.overdueBalances?.length || 0} overdue
           </span>
         </div>
@@ -133,10 +134,10 @@ export const RemindersView: React.FC<RemindersViewProps> = ({
                     <div className="mono text-[10px] text-muted-foreground">{b.guardian_phone}</div>
                   </td>
                   <td className="text-right mono text-xs font-bold text-destructive">
-                    {currency} {Number(b.balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {currency} {formatCurrency(b.balance)}
                   </td>
                   <td>
-                    <span className="badge-pill bg-destructive text-destructive-foreground !text-[9px] font-bold">
+                    <span className="badge-pill bg-destructive text-destructive-foreground !text-[9px] font-bold whitespace-nowrap">
                       {b.daysSinceLastPayment || 45} Days Overdue
                     </span>
                   </td>
@@ -190,9 +191,9 @@ export const RemindersView: React.FC<RemindersViewProps> = ({
 
       {/* Section 2: Stalled Admissions Candidates (>14 Days in same funnel stage) */}
       <div className="panel p-5 space-y-4">
-        <div className="flex items-center justify-between pb-2 border-b border-border">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center">
+        <div className="flex items-start justify-between pb-2 border-b border-border">
+          <div className="flex items-start gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-amber-500/10 text-amber-600 flex items-center justify-center shrink-0 mt-0.5">
               <Clock className="w-4 h-4" />
             </div>
             <div>
@@ -200,7 +201,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({
               <p className="text-xs text-muted-foreground">Candidates requiring admissions outreach or document follow-ups</p>
             </div>
           </div>
-          <span className="mono text-xs font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground">
+          <span className="mono text-xs font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground whitespace-nowrap mt-0.5">
             {data.stalledApplicants?.length || 0} stalled
           </span>
         </div>
@@ -231,7 +232,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({
                   </td>
                   <td className="text-xs font-medium">{app.grade_applying}</td>
                   <td>
-                    <span className={`badge badge-${app.status}`}>
+                    <span className={`badge badge-${app.status} whitespace-nowrap`}>
                       {app.status.replace('_', ' ')}
                     </span>
                   </td>
@@ -277,9 +278,9 @@ export const RemindersView: React.FC<RemindersViewProps> = ({
 
       {/* Section 3: Upcoming Assessments */}
       <div className="panel p-5 space-y-4">
-        <div className="flex items-center justify-between pb-2 border-b border-border">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center">
+        <div className="flex items-start justify-between pb-2 border-b border-border">
+          <div className="flex items-start gap-2.5">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0 mt-0.5">
               <Calendar className="w-4 h-4" />
             </div>
             <div>
@@ -287,7 +288,7 @@ export const RemindersView: React.FC<RemindersViewProps> = ({
               <p className="text-xs text-muted-foreground">Entrance examinations and faculty placement interviews scheduled</p>
             </div>
           </div>
-          <span className="mono text-xs font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground">
+          <span className="mono text-xs font-semibold px-2 py-0.5 rounded bg-muted text-muted-foreground whitespace-nowrap mt-0.5">
             {data.upcomingAssessments?.length || 0} scheduled
           </span>
         </div>

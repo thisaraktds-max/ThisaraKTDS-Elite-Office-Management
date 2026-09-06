@@ -19,6 +19,7 @@ import {
   FileCode,
 } from 'lucide-react';
 import { Income } from '../../types';
+import { formatCurrency } from '../../utils/format';
 import { printElement, exportElementToPdf } from '../../utils/printDocument';
 import {
   isWebSerialSupported,
@@ -518,7 +519,7 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
                 <div className="text-right">
                   <span className="eyebrow block">Amount Received</span>
                   <span className="mono font-bold text-2xl text-[hsl(162,30%,35%)] dark:text-emerald-400">
-                    {currency}{Number(receipt.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    {currency}{formatCurrency(receipt.amount)}
                   </span>
                 </div>
               </div>
@@ -566,7 +567,7 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
                       />
                     </div>
                   ) : null}
-                  <div className="font-bold text-[11px] uppercase tracking-wide">
+                  <div className="font-medium text-[11px] uppercase tracking-wide">
                     {settings.school_name || 'Elite International School'}
                   </div>
                   <div className="font-mono text-[8.5px] uppercase tracking-wider mt-0.5 text-neutral-800">
@@ -632,9 +633,9 @@ export const PrintReceiptModal: React.FC<PrintReceiptModalProps> = ({
                 <div className="border-t border-black border-dashed my-1.5" />
 
                 <div className="py-1 text-center border-y border-black border-double my-1.5">
-                  <div className="text-[9px] font-bold uppercase tracking-wider">AMOUNT RECEIVED</div>
-                  <div className="text-sm font-bold font-mono tracking-tight mt-0.5">
-                    {currency}{Number(receipt.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  <div className="text-[9px] font-medium uppercase tracking-wider">AMOUNT RECEIVED</div>
+                  <div className="text-sm font-medium font-mono tracking-tight mt-0.5">
+                    {currency}{formatCurrency(receipt.amount)}
                   </div>
                 </div>
 
